@@ -10,7 +10,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="西语每日练">
-    <title>西语每日练 - 课时选择·随机出题</title>
+    <title>西语每日练 - 教材主线 · 每日练习</title>
     <style>
         :root {
             --primary: #2b6cb0;
@@ -230,6 +230,46 @@
             margin: 10px 0;
         }
         .hidden { display: none !important; }
+        /* ---- 教材主线页 ---- */
+        .tb-card {
+            background: #f2f8fd;
+            border-left: 4px solid var(--primary);
+            border-radius: 12px;
+            padding: 14px 16px;
+            margin-bottom: 12px;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .tb-card:hover { background: #e8f2fb; }
+        .tb-card-title { font-weight: bold; font-size: 1.02em; color: #333; }
+        .tb-meta { font-size: 0.82em; color: #777; margin-top: 2px; }
+        .tb-bar { height: 6px; background: #dceafa; border-radius: 3px; margin-top: 8px; overflow: hidden; }
+        .tb-bar i { display: block; height: 100%; background: linear-gradient(90deg, var(--blue), var(--green)); }
+        .tb-back { margin-bottom: 12px; font-size: 0.85em; }
+        details.tb-point {
+            background: #f2f8fd;
+            border-radius: 10px;
+            padding: 12px 14px;
+            margin-bottom: 10px;
+        }
+        details.tb-point summary {
+            cursor: pointer;
+            font-weight: bold;
+            color: var(--primary);
+            font-size: 0.95em;
+        }
+        .tb-explain { font-size: 0.88em; color: #444; line-height: 1.7; margin: 8px 0; }
+        .ex-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 5px 0;
+            border-bottom: 1px dashed #d5e5f5;
+            font-size: 0.88em;
+        }
+        .ex-row:last-child { border-bottom: none; }
+        .ex-es { color: var(--accent); font-weight: bold; }
+        .ex-zh { color: #666; text-align: right; }
         .modal-overlay {
             position: fixed; inset: 0;
             background: rgba(0,0,0,0.45);
@@ -380,14 +420,24 @@
         <p style="font-size:0.75em; opacity:0.55; margin-top:6px;" id="versionTag"></p>
     </header>
     <nav>
-        <button class="active" onclick="switchTab('learn')">📖 学习</button>
+        <button class="active" onclick="switchTab('textbook')">📚 教材</button>
+        <button onclick="switchTab('learn')">📖 学习</button>
         <button onclick="switchTab('review')">🔁 错题</button>
         <button onclick="switchTab('dictation')">🎧 精听</button>
         <button onclick="switchTab('stats')">📅 打卡</button>
     </nav>
 
+    <!-- 教材主线（讲解 → 练习） -->
+    <div id="textbook" class="tab-content active">
+        <h2 style="margin-bottom:15px;">📚 教材主线</h2>
+        <p style="color:#888; margin-bottom:15px; font-size:0.9em;">
+            按《现代西班牙语》第一册循序渐进：先看讲解，再做练习。
+        </p>
+        <div id="textbookContent"></div>
+    </div>
+
     <!-- 学习模式 -->
-    <div id="learn" class="tab-content active">
+    <div id="learn" class="tab-content">
         <!-- 课时选择 -->
         <div class="lesson-selector">
             <label for="lessonSelect">📚 选择课时：</label>
@@ -622,6 +672,10 @@ const TIERS = {
     8:  '简单过去时 · 规则 -ar',
     9:  '简单过去时 · 规则 -er / -ir',
     10: '简单过去时 · 不规则与反身',
+    11: '命令式（tú / usted / nosotros 命令与请求）',
+    12: '虚拟式现在时（愿望 / 建议 / 情感）',
+    13: '过去分词与自复被动等高级结构',
+    14: '副动词与进行时（estar + -ando / -iendo）',
 };
 
 // ==================== 课程数据（来自 course-data.js） ====================
@@ -900,6 +954,7 @@ function startSession(ans) {
     renderPlanBanner();
     loadCurrentSentence();
     updateProgress();
+    switchTab('learn');   // 默认页签是「教材」，答完问卷跳到练习页
 }
 
 function renderPlanBanner() {
@@ -1000,12 +1055,19 @@ function init() {
     planOpt.value = MODE_PLAN;
     planOpt.textContent = '📋 今日计划（SRS 智能复习）';
     select.appendChild(planOpt);
+    // 双分组：教材主线课 / 复习·场景课
+    const gMain = document.createElement('optgroup');
+    gMain.label = '📕 教材主线课';
+    const gRev = document.createElement('optgroup');
+    gRev.label = '🔁 复习 · 场景课';
     course.forEach(lesson => {
         const option = document.createElement('option');
         option.value = lesson.id;
         option.textContent = `${lesson.title}　·　${lesson.difficulty}　·　${lesson.sentences.length} 句`;
-        select.appendChild(option);
+        (lesson.group === 'main' ? gMain : gRev).appendChild(option);
     });
+    select.appendChild(gMain);
+    select.appendChild(gRev);
 
     // 恢复上次的模式/课时；课时不存在时回退到今日计划
     const savedLessonId = loadData('currentLessonId', MODE_PLAN);
@@ -1462,14 +1524,91 @@ function saveSettings() {
     saveData('dailyLimit', dailyLimit);
 }
 
+// ==================== 教材主线模式 ====================
+function renderTextbook() {
+    const container = document.getElementById('textbookContent');
+    const main = course.filter(l => l.group === 'main');
+    if (main.length === 0) {
+        container.innerHTML = '<p style="text-align:center; color:#aaa; padding:30px 0;">📕 教材课还在路上，先到「学习」页做场景练习吧</p>';
+        return;
+    }
+    let html = '';
+    main.forEach(lesson => {
+        const done = lesson.sentences.filter(s => (cards[cardId(s)] || {}).reps > 0).length;
+        const total = lesson.sentences.length;
+        const pct = total > 0 ? Math.round(done / total * 100) : 0;
+        const points = (lesson.teaching && lesson.teaching.points) ? lesson.teaching.points.length : 0;
+        const vocab = (lesson.teaching && lesson.teaching.vocab) ? lesson.teaching.vocab.length : 0;
+        html += `
+            <div class="tb-card" onclick="showTextbookLesson(${lesson.id})">
+                <div class="tb-card-title">${done === total && total > 0 ? '✅ ' : ''}${lesson.title}</div>
+                <div class="tb-meta">${lesson.summary}</div>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
+                    <span class="tb-meta">${points} 个知识点 · ${vocab} 个词 · ${total} 句练习</span>
+                    <span class="tb-meta">已学 ${done}/${total}</span>
+                </div>
+                <div class="tb-bar"><i style="width:${pct}%"></i></div>
+            </div>
+        `;
+    });
+    container.innerHTML = html;
+}
+
+function showTextbookLesson(id) {
+    const lesson = course.find(l => l.id === id);
+    const container = document.getElementById('textbookContent');
+    if (!lesson) { renderTextbook(); return; }
+    const t = lesson.teaching;
+    const done = lesson.sentences.filter(s => (cards[cardId(s)] || {}).reps > 0).length;
+    const total = lesson.sentences.length;
+
+    let pointsHtml = '<p style="color:#aaa;">本课暂无讲解，可直接练习。</p>';
+    if (t && t.points && t.points.length) {
+        pointsHtml = t.points.map(p => `
+            <details class="tb-point">
+                <summary>💡 ${p.title}</summary>
+                <p class="tb-explain">${p.explain}</p>
+                ${(p.examples || []).map(e => `<div class="ex-row"><span class="ex-es">${e.es}</span><span class="ex-zh">${e.zh}</span></div>`).join('')}
+            </details>
+        `).join('');
+    }
+    let vocabHtml = '';
+    if (t && t.vocab && t.vocab.length) {
+        vocabHtml = `<h3 style="margin:15px 0 8px; font-size:1em;">📕 本课词汇</h3>
+        <table><tr><th>西语</th><th>词性</th><th>中文</th></tr>
+        ${t.vocab.map(v => `<tr><td>${v.es}</td><td>${v.pos}</td><td>${v.zh}</td></tr>`).join('')}
+        </table>`;
+    }
+    container.innerHTML = `
+        <button class="btn-secondary tb-back" onclick="renderTextbook()">← 返回课程列表</button>
+        <div class="card" style="border-left-color:var(--primary);">
+            <div class="lang-label" style="color:var(--primary);">${lesson.title}</div>
+            <div style="font-size:0.85em; color:#666; margin-bottom:6px;">${lesson.summary}</div>
+            <div class="tb-meta">难度：${lesson.difficulty}　|　${total} 句练习　|　已学 ${done}/${total}</div>
+        </div>
+        ${pointsHtml}
+        ${vocabHtml}
+        <div class="buttons" style="margin-top:18px;">
+            <button class="btn-success" onclick="startTextbookPractice(${lesson.id})">✏️ 开始本课练习（${total} 句）</button>
+        </div>
+    `;
+    window.scrollTo(0, 0);
+}
+
+function startTextbookPractice(id) {
+    loadLesson(id);          // 复用现有课时流程：建队列、出第一题、记录 currentLessonId
+    switchTab('learn');
+}
+
 // ==================== 错题模式 ====================
 function switchTab(tab) {
     document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
     document.querySelectorAll('nav button').forEach(el => el.classList.remove('active'));
     document.getElementById(tab).classList.add('active');
     const btns = document.querySelectorAll('nav button');
-    const idx = ['learn','review','dictation','stats'].indexOf(tab);
+    const idx = ['textbook','learn','review','dictation','stats'].indexOf(tab);
     if (idx >= 0) btns[idx].classList.add('active');
+    if (tab === 'textbook') renderTextbook();
     if (tab === 'review') renderReview();
     if (tab === 'stats') renderStats();
 }
