@@ -571,6 +571,7 @@
     </div>
 </div>
 
+<script src="./course-data.js"></script>
 <script>
 // ==================== 版本隔离与自动清理 ====================
 // 每次迭代只改这一行，做题进度／打卡天数就会自动归零。
@@ -612,9 +613,9 @@ let freshInstall = false;
 // 最后才是过去时。同一课内按这个梯度推进，梯度内部才随机打乱。
 const TIERS = {
     1:  '固定寒暄语（整块记忆，无需变位）',
-    2:  'ser 断言句（身份 / 来源 / 性质）',
-    3:  '现在时 · 规则动词第一人称',
-    4:  '现在时 · 高频不规则动词 tener',
+    2:  'ser / estar 基本断言句（身份 / 来源 / 位置 / 性质）',
+    3:  '现在时 · 规则动词（各人称）',
+    4:  '现在时 · 高频不规则动词（tener / querer / ir 等）',
     5:  '现在时 · 反身动词',
     6:  '疑问句（疑问词 + 动词变位）',
     7:  '否定句（no + 动词）',
@@ -623,81 +624,11 @@ const TIERS = {
     10: '简单过去时 · 不规则与反身',
 };
 
-// ==================== 课程数据（课时化 + 知识点标注） ====================
-const course = [
-    {
-        id: 1,
-        title: "第1课：问候与自我介绍",
-        summary: "问候、告别、自我介绍、动词 ser 和 llamarse",
-        difficulty: "入门",
-        length: "5 句",
-        sentences: [
-            { english: "Hello, how are you?", chinese: "你好，你好吗？", spanish: "Hola, ¿cómo estás?", tier: 1, point: "寒暄固定搭配" },
-            { english: "Good morning, nice to meet you.", chinese: "早上好，很高兴认识你。", spanish: "Buenos días, mucho gusto.", tier: 1, point: "问候 + 初次见面用语" },
-            { english: "See you later!", chinese: "回头见！", spanish: "¡Hasta luego!", tier: 1, point: "告别固定搭配" },
-            { english: "My name is Maria.", chinese: "我的名字是玛丽亚。", spanish: "Me llamo María.", tier: 5, point: "反身动词 llamarse（我：me llamo）" },
-            { english: "What is your name?", chinese: "你叫什么名字？", spanish: "¿Cómo te llamas?", tier: 6, point: "疑问词 cómo + 反身动词（你：te llamas）" }
-        ]
-    },
-    {
-        id: 2,
-        title: "第2课：数字与年龄",
-        summary: "数字1-10、询问年龄、动词 tener 的用法",
-        difficulty: "入门",
-        length: "4 句",
-        sentences: [
-            { english: "I am 25 years old.", chinese: "我25岁。", spanish: "Tengo veinticinco años.", tier: 4, point: "tener 第一人称 tengo + 西语用「有…岁」表年龄" },
-            { english: "I have one brother and one sister.", chinese: "我有一个哥哥和一个妹妹。", spanish: "Tengo un hermano y una hermana.", tier: 4, point: "tengo + 不定冠词阳性 un / 阴性 una" },
-            { english: "Do you have siblings?", chinese: "你有兄弟姐妹吗？", spanish: "¿Tienes hermanos?", tier: 6, point: "tener 第二人称 tienes（是否疑问句）" },
-            { english: "How old are you?", chinese: "你多大了？", spanish: "¿Cuántos años tienes?", tier: 6, point: "疑问词 cuántos + tienes" }
-        ]
-    },
-    {
-        id: 3,
-        title: "第3课：国家与语言",
-        summary: "国家、国籍、语言、动词 ser 和 hablar",
-        difficulty: "入门",
-        length: "5 句",
-        sentences: [
-            { english: "I am from China.", chinese: "我来自中国。", spanish: "Soy de China.", tier: 2, point: "ser 第一人称 soy + de 表来源" },
-            { english: "I speak a little Spanish.", chinese: "我说一点西班牙语。", spanish: "Hablo un poco de español.", tier: 3, point: "-ar 规则动词 hablar 第一人称 hablo" },
-            { english: "Where are you from?", chinese: "你来自哪里？", spanish: "¿De dónde eres?", tier: 6, point: "疑问词 dónde + ser 第二人称 eres" },
-            { english: "Do you speak Spanish?", chinese: "你说西班牙语吗？", spanish: "¿Hablas español?", tier: 6, point: "hablar 第二人称 hablas（是否疑问句）" },
-            { english: "I don't speak Spanish.", chinese: "我不说西班牙语。", spanish: "No hablo español.", tier: 7, point: "否定句：no 直接放动词前" }
-        ]
-    },
-    {
-        id: 4,
-        title: "第4课：家庭与过去时入门",
-        summary: "家庭词汇、物主形容词、简单过去时（hablar, ser, tener）",
-        difficulty: "入门-进阶",
-        length: "4 句",
-        sentences: [
-            { english: "My family is big.", chinese: "我的家庭很大。", spanish: "Mi familia es grande.", tier: 2, point: "物主形容词 mi + ser 第三人称 es" },
-            { english: "My mother is called Ana.", chinese: "我妈妈叫安娜。", spanish: "Mi madre se llama Ana.", tier: 5, point: "反身动词第三人称 se llama（对比 me llamo）" },
-            { english: "Yesterday I spoke with my father.", chinese: "昨天我和我爸爸说话了。", spanish: "Ayer hablé con mi padre.", tier: 8, point: "过去时 -ar 规则：hablo → hablé（重音在末音节）" },
-            { english: "Last week I went to my grandparents' house.", chinese: "上周我去了我祖父母家。", spanish: "La semana pasada fui a la casa de mis abuelos.", tier: 10, point: "不规则过去时 ir → fui（与 ser 同形，需靠语境分辨）" }
-        ]
-    },
-    {
-        id: 5,
-        title: "第5课：日常活动与规则动词",
-        summary: "日常活动、反身动词、-er/-ir 动词现在时和过去时",
-        difficulty: "进阶",
-        length: "9 句",
-        sentences: [
-            { english: "My daily routine is simple.", chinese: "我的日常作息很简单。", spanish: "Mi rutina diaria es simple.", tier: 2, point: "ser + 形容词，形容词跟名词保持阴性一致" },
-            { english: "I get up at seven in the morning.", chinese: "我早上七点起床。", spanish: "Me levanto a las siete de la mañana.", tier: 5, point: "反身动词 levantarse + 时间表达 a las…" },
-            { english: "What time do you go to bed?", chinese: "你几点睡觉？", spanish: "¿A qué hora te acuestas?", tier: 6, point: "疑问句 + 词干变化动词 acostarse（o → ue）" },
-            { english: "Yesterday I worked all day.", chinese: "昨天我工作了一整天。", spanish: "Ayer trabajé todo el día.", tier: 8, point: "过去时 -ar 规则：trabajo → trabajé" },
-            { english: "Yesterday I ate pasta for lunch.", chinese: "昨天我午餐吃了意大利面。", spanish: "Ayer comí pasta para el almuerzo.", tier: 9, point: "过去时 -er 规则：como → comí" },
-            { english: "He wrote a letter yesterday.", chinese: "他昨天写了一封信。", spanish: "Él escribió una carta ayer.", tier: 9, point: "过去时 -ir 第三人称：escribe → escribió" },
-            { english: "She lived in Shanghai last year.", chinese: "她去年住在上海。", spanish: "Ella vivió en Shanghai el año pasado.", tier: 9, point: "过去时 -ir 第三人称：vive → vivió" },
-            { english: "Last year we lived in Beijing.", chinese: "去年我们住在北京。", spanish: "El año pasado vivimos en Pekín.", tier: 9, point: "vivimos 现在时与过去时同形，只能靠时间词分辨" },
-            { english: "Last night I went to bed very late.", chinese: "昨晚我很晚才睡觉。", spanish: "Anoche me acosté muy tarde.", tier: 10, point: "过去时 + 反身：me acuesto → me acosté" }
-        ]
-    }
-];
+// ==================== 课程数据（来自 course-data.js） ====================
+// 内容迭代只改 course-data.js；这里做防御：万一该文件没上传，页面降级为空课程而不是白屏
+const course = (typeof COURSE_DATA !== 'undefined' && Array.isArray(COURSE_DATA))
+    ? COURSE_DATA
+    : [];
 
 // ==================== 今日计划评估 ====================
 // 这里是纯规则表，不接 AI —— 输入只有三道选择题，几十种组合而已，查表就够了，
@@ -737,7 +668,8 @@ function planSession(ans) {
     newCount    = Math.min(newCount, newAvail);
 
     // 新题保底：复习债再多也不能让今天变成纯复习
-    if (goal.revPct < 1 && newCount < MIN_NEW) {
+    // 例外：固定总题数的「保打卡」目标就是要迷你局，不受保底规则影响
+    if (!goal.fixedTotal && goal.revPct < 1 && newCount < MIN_NEW) {
         newCount = Math.min(MIN_NEW, newAvail);
     }
     // 复习没排满就把余量让给新题，反之亦然，别浪费你的时间预算
