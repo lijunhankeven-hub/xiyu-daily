@@ -1,0 +1,1879 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#2b6cb0">
+    <link rel="manifest" href="manifest.webmanifest">
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="西语每日练">
+    <title>西语每日练 - 课时选择·随机出题</title>
+    <style>
+        :root {
+            --primary: #2b6cb0;
+            --accent: #f39c12;
+            --green: #27ae60;
+            --red: #e74c3c;
+            --blue: #4a9fe3;
+        }
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body {
+            font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            background: #e8f2fb;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .app {
+            max-width: 800px;
+            margin: 0 auto;
+            background: #fff;
+            border-radius: 20px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        header {
+            background: var(--primary);
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+        header h1 { font-size: 1.5em; }
+        header p { font-size: 0.85em; opacity: 0.8; margin-top: 4px; }
+        nav {
+            display: flex;
+            background: #1e4976;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        nav button {
+            flex: 1;
+            min-width: 80px;
+            padding: 12px 8px;
+            background: none;
+            border: none;
+            color: #d9e8f7;
+            font-size: 0.9em;
+            cursor: pointer;
+            transition: 0.3s;
+            border-bottom: 3px solid transparent;
+            white-space: nowrap;
+        }
+        nav button.active {
+            color: white;
+            border-bottom-color: var(--accent);
+            background: rgba(255,255,255,0.1);
+        }
+        .tab-content {
+            display: none;
+            padding: 20px;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .card {
+            background: #f2f8fd;
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 12px;
+            border-left: 4px solid #ccc;
+        }
+        .card.english { border-left-color: var(--blue); }
+        .card.chinese { border-left-color: var(--red); }
+        .card.spanish { border-left-color: var(--accent); }
+        .lang-label {
+            font-size: 0.75em;
+            text-transform: uppercase;
+            font-weight: bold;
+            margin-bottom: 4px;
+            letter-spacing: 0.5px;
+        }
+        .card.english .lang-label { color: var(--blue); }
+        .card.chinese .lang-label { color: var(--red); }
+        .card.spanish .lang-label { color: var(--accent); }
+        .text {
+            font-size: 1.15em;
+            line-height: 1.6;
+            color: #333;
+            word-break: break-word;
+        }
+        .blurred {
+            filter: blur(5px);
+            user-select: none;
+            cursor: pointer;
+            transition: filter 0.3s;
+        }
+        .input-area {
+            display: flex;
+            gap: 10px;
+            margin: 15px 0;
+        }
+        .input-area input {
+            flex: 1;
+            padding: 14px;
+            font-size: 1em;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            outline: none;
+            min-width: 0;
+        }
+        .input-area input:focus { border-color: var(--accent); }
+        .buttons {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin: 15px 0;
+        }
+        .buttons button {
+            padding: 12px 18px;
+            font-size: 0.9em;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: 0.2s;
+            font-weight: bold;
+            touch-action: manipulation;
+        }
+        .btn-success { background: var(--green); color: white; }
+        .btn-success:hover { background: #2ecc71; }
+        .btn-warning { background: var(--accent); color: white; }
+        .btn-warning:hover { background: #f1c40f; }
+        .btn-primary { background: var(--blue); color: white; }
+        .btn-primary:hover { background: #5dade2; }
+        .btn-secondary { background: #95a5a6; color: white; }
+        .btn-secondary:hover { background: #7f8c8d; }
+        .btn-danger { background: var(--red); color: white; }
+        .btn-danger:hover { background: #ec7063; }
+        .feedback {
+            text-align: center;
+            margin-top: 10px;
+            font-weight: bold;
+            min-height: 28px;
+            font-size: 1.05em;
+        }
+        .correct { color: var(--green); }
+        .incorrect { color: var(--red); }
+        .progress-bar {
+            height: 8px;
+            background: #dceafa;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--blue), var(--green));
+            border-radius: 4px;
+            transition: width 0.5s;
+        }
+        .stats {
+            display: flex;
+            justify-content: space-around;
+            margin: 15px 0;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .stat-item {
+            text-align: center;
+            padding: 10px;
+            background: #f2f8fd;
+            border-radius: 10px;
+            min-width: 80px;
+            flex: 1;
+        }
+        .stat-value {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: var(--primary);
+        }
+        .stat-label {
+            font-size: 0.75em;
+            color: #888;
+            margin-top: 2px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+            font-size: 0.9em;
+        }
+        th, td {
+            padding: 10px 8px;
+            text-align: center;
+            border-bottom: 1px solid #eee;
+        }
+        th {
+            background: #f2f8fd;
+            font-weight: bold;
+            color: #555;
+        }
+        .settings-row {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 12px;
+            flex-wrap: wrap;
+        }
+        .settings-row select {
+            padding: 8px 12px;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+            font-size: 1em;
+            background: white;
+        }
+        .audio-player {
+            width: 100%;
+            margin: 10px 0;
+        }
+        .hidden { display: none !important; }
+        .modal-overlay {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.45);
+            display: flex; align-items: center; justify-content: center;
+            z-index: 100; padding: 16px;
+        }
+        .modal {
+            background: #fff; border-radius: 16px;
+            max-width: 520px; width: 100%;
+            padding: 24px; max-height: 90vh; overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        .modal h2 { font-size: 1.25em; margin-bottom: 4px; color: var(--primary); }
+        .modal .sub { color: #888; font-size: 0.85em; margin-bottom: 18px; }
+        .q-label { font-weight: bold; font-size: 0.95em; margin: 16px 0 8px; }
+        .opts { display: flex; flex-wrap: wrap; gap: 8px; }
+        .opt {
+            border: 2px solid #ddd; background: #f2f8fd;
+            border-radius: 20px; padding: 8px 16px;
+            cursor: pointer; font-size: 0.9em; transition: 0.15s;
+            user-select: none;
+        }
+        .opt:hover { border-color: var(--blue); }
+        .opt.sel { border-color: var(--blue); background: #eaf4fd; font-weight: bold; color: var(--primary); }
+        .modal .go-btn {
+            margin-top: 20px; width: 100%;
+            background: var(--green); color: white;
+            border: none; border-radius: 10px;
+            padding: 13px; font-size: 1em; font-weight: bold; cursor: pointer;
+        }
+        .modal .go-btn:disabled { background: #bdc3c7; cursor: not-allowed; }
+        textarea {
+            width: 100%;
+            padding: 12px;
+            margin-top: 10px;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            font-size: 0.95em;
+            font-family: inherit;
+            resize: vertical;
+            min-height: 80px;
+        }
+        .tip-box {
+            background: #fff3cd;
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 15px;
+            font-size: 0.9em;
+            line-height: 1.6;
+            color: #666;
+        }
+        .review-item {
+            background: #fff;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        }
+        .review-item input {
+            width: 100%;
+            padding: 10px;
+            margin: 8px 0;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 1em;
+            outline: none;
+        }
+        .review-item input:focus { border-color: var(--blue); }
+        .review-feedback {
+            font-weight: bold;
+            margin-left: 8px;
+        }
+        mark {
+            background-color: yellow;
+            padding: 0 2px;
+            border-radius: 2px;
+        }
+        .lesson-selector {
+            margin-bottom: 15px;
+            padding: 15px;
+            background: #f2f8fd;
+            border-radius: 12px;
+        }
+        .lesson-selector label {
+            font-weight: bold;
+            display: block;
+            margin-bottom: 8px;
+        }
+        .lesson-selector select {
+            width: 100%;
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+            font-size: 1em;
+            background: white;
+        }
+        .lesson-info {
+            font-size: 0.85em;
+            color: #666;
+            margin-top: 8px;
+            line-height: 1.5;
+        }
+        .lesson-info strong {
+            color: var(--primary);
+        }
+        .point-banner {
+            background: linear-gradient(90deg, #dcebfa, #f2f8fd);
+            border-left: 4px solid var(--primary);
+            border-radius: 8px;
+            padding: 10px 14px;
+            margin-bottom: 12px;
+            font-size: 0.88em;
+            line-height: 1.5;
+            color: #444;
+        }
+        .point-banner .tier-badge {
+            display: inline-block;
+            background: var(--primary);
+            color: #fff;
+            border-radius: 20px;
+            padding: 2px 10px;
+            font-size: 0.85em;
+            font-weight: bold;
+            margin-right: 8px;
+        }
+        .plan-banner {
+            background: linear-gradient(90deg, #e8f8f0, #f8f9fa);
+            border-left: 4px solid var(--green);
+            border-radius: 10px;
+            padding: 12px 16px;
+            margin-bottom: 12px;
+            font-size: 0.9em;
+            line-height: 1.7;
+            color: #333;
+        }
+        .plan-banner .pb-row { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 4px 16px; }
+        .plan-banner .pb-label { color: #888; }
+        .plan-banner a { color: var(--blue); cursor: pointer; text-decoration: underline; }
+        .battery { display: inline-block; width: 72px; height: 12px; border-radius: 6px; background: #eee; overflow: hidden; vertical-align: middle; margin-left: 6px; }
+        .battery i { display: block; height: 100%; background: linear-gradient(90deg, var(--green), #8bc34a); }
+    </style>
+</head>
+<body>
+<div class="app">
+    <header>
+        <h1>🇪🇸 西语每日练</h1>
+        <p>每天一点西语 · 知识分层 · SRS 记忆</p>
+        <p style="font-size:0.75em; opacity:0.55; margin-top:6px;" id="versionTag"></p>
+    </header>
+    <nav>
+        <button class="active" onclick="switchTab('learn')">📖 学习</button>
+        <button onclick="switchTab('review')">🔁 错题</button>
+        <button onclick="switchTab('dictation')">🎧 精听</button>
+        <button onclick="switchTab('stats')">📅 打卡</button>
+    </nav>
+
+    <!-- 学习模式 -->
+    <div id="learn" class="tab-content active">
+        <!-- 课时选择 -->
+        <div class="lesson-selector">
+            <label for="lessonSelect">📚 选择课时：</label>
+            <select id="lessonSelect" onchange="changeLesson(this.value)">
+                <!-- 选项由 JavaScript 动态生成 -->
+            </select>
+            <div class="lesson-info" id="lessonInfo"></div>
+        </div>
+        <div class="plan-banner hidden" id="planBanner"></div>
+
+        <div class="stats">
+            <div class="stat-item">
+                <div class="stat-value" id="scoreDisplay">0</div>
+                <div class="stat-label">总得分</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="newToday">0</div>
+                <div class="stat-label">今日新题</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="wrongCount">0</div>
+                <div class="stat-label">错题数</div>
+            </div>
+        </div>
+        <div class="progress-bar">
+            <div class="progress-fill" id="progressFill" style="width:0%"></div>
+        </div>
+        <div class="point-banner" id="pointBanner"></div>
+        <div class="card english">
+            <div class="lang-label">🇬🇧 English</div>
+            <div class="text" id="englishText"></div>
+        </div>
+        <div class="card chinese">
+            <div class="lang-label">🇨🇳 中文</div>
+            <div class="text" id="chineseText"></div>
+        </div>
+        <div class="card spanish">
+            <div class="lang-label">🇪🇸 Español（点击显示/隐藏）</div>
+            <div class="text blurred" id="spanishText" onclick="toggleSpanish()"></div>
+        </div>
+        <div class="input-area">
+            <input type="text" id="userInput" placeholder="输入西班牙语..." onkeydown="if(event.key==='Enter') checkAnswer()">
+        </div>
+        <div class="buttons">
+            <button class="btn-success" onclick="checkAnswer()">✅ 检查</button>
+            <button class="btn-warning" onclick="showHint()">💡 提示</button>
+            <button class="btn-secondary" onclick="revealAnswer()">👁 显示答案</button>
+            <button class="btn-primary" onclick="nextQuestion()">➡️ 下一题</button>
+        </div>
+        <div class="feedback" id="feedback"></div>
+        <div class="settings-row">
+            <button class="btn-primary" onclick="replanToday()">📋 重新规划今天</button>
+        </div>
+    </div>
+
+    <!-- 错题模式 -->
+    <div id="review" class="tab-content">
+        <h2 style="margin-bottom:5px;">🔁 错题重做</h2>
+        <p style="color:#888; margin-bottom:15px; font-size:0.9em;">这里集中显示做错的题目，答对后自动移除。</p>
+        <div id="reviewContent">
+            <p style="text-align:center; color:#aaa; padding:30px 0;">🎉 暂无错题</p>
+        </div>
+    </div>
+
+    <!-- 精听模式 -->
+    <div id="dictation" class="tab-content">
+        <h2 style="margin-bottom:5px;">🎧 精听练习</h2>
+        <p style="color:#888; margin-bottom:15px; font-size:0.9em;">上传音频，粘贴文本，做听写训练。</p>
+        <input type="file" id="audioFile" accept="audio/*" onchange="loadAudio(this)" style="margin-bottom:10px; font-size:0.9em;">
+        <div id="dictationPlayer" class="hidden">
+            <audio controls class="audio-player" id="audioPlayer"></audio>
+            <div class="card spanish" style="margin-top:10px;">
+                <div class="lang-label">🇪🇸 文本（点击显示/隐藏）</div>
+                <div class="text" id="dictationText" onclick="toggleDictationText()">（请先添加文本）</div>
+            </div>
+            <div class="input-area">
+                <input type="text" id="dictationInput" placeholder="听到的内容..." onkeydown="if(event.key==='Enter') checkDictation()">
+            </div>
+            <div class="buttons">
+                <button class="btn-success" onclick="checkDictation()">✅ 检查听写</button>
+                <button class="btn-warning" onclick="blurDictationText()">👁 模糊文本</button>
+            </div>
+            <div class="feedback" id="dictationFeedback"></div>
+        </div>
+        <textarea id="dictationTextSource" placeholder="粘贴西语文本到这里，然后点击下方“设置文本”"></textarea>
+        <div class="buttons">
+            <button class="btn-primary" onclick="setDictationText()">📄 设置文本</button>
+        </div>
+        <div class="tip-box">
+            <b>📌 使用步骤：</b><br>
+            1️⃣ 上传一段西语音频（mp3/wav）<br>
+            2️⃣ 将对应的文本粘贴到上方框中，点击“设置文本”<br>
+            3️⃣ 播放音频，在输入框里打出听到的内容<br>
+            4️⃣ 点击“检查听写”对比原文<br>
+            5️⃣ 建议一句一句听，不要一次听完整段
+        </div>
+    </div>
+
+    <!-- 打卡统计 -->
+    <div id="stats" class="tab-content">
+        <h2 style="margin-bottom:15px;">📅 学习打卡</h2>
+
+        <div class="card" id="todayCard" style="border-left-color:var(--green);">
+            <div class="lang-label" style="color:var(--green);">今日</div>
+            <div id="todayCardBody">—</div>
+        </div>
+
+        <div class="stats">
+            <div class="stat-item">
+                <div class="stat-value" id="streak">0</div>
+                <div class="stat-label">连续打卡天数</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="totalDays">0</div>
+                <div class="stat-label">累计学习天数</div>
+            </div>
+        </div>
+
+        <h3 style="margin:15px 0 10px; font-size:1em;">🧠 记忆库</h3>
+        <div class="stats" id="memoryStats">
+            <div class="stat-item"><div class="stat-value" id="memDue">0</div><div class="stat-label">待复习</div></div>
+            <div class="stat-item"><div class="stat-value" id="memLearning">0</div><div class="stat-label">学习中</div></div>
+            <div class="stat-item"><div class="stat-value" id="memMastered">0</div><div class="stat-label">已掌握</div></div>
+            <div class="stat-item"><div class="stat-value" id="memLeech">0</div><div class="stat-label">顽固</div></div>
+        </div>
+
+        <h3 style="margin:15px 0 10px; font-size:1em;">🗓️ 未来7天到期预测</h3>
+        <div id="forecast" style="display:flex; align-items:flex-end; gap:8px; height:90px; padding:8px; background:#f2f8fd; border-radius:10px;"></div>
+
+        <h3 style="margin:15px 0 10px; font-size:1em;">💀 顽固题（反复错的句子）</h3>
+        <div id="leechList"><p style="color:#aaa; text-align:center; padding:10px 0;">暂无——很好！</p></div>
+
+        <h3 style="margin:15px 0 10px; font-size:1em;">最近7天</h3>
+        <table id="checkinTable">
+            <tr><th>日期</th><th>学习新题</th><th>复习错题</th><th>精听</th></tr>
+        </table>
+
+        <div class="buttons" style="margin-top:15px;">
+            <button class="btn-success" onclick="markLearned()">✅ 今天已学习</button>
+            <button class="btn-warning" onclick="markReviewed()">🔁 今天已复习</button>
+            <button class="btn-primary" onclick="markDictation()">🎧 今天已精听</button>
+        </div>
+
+        <div style="margin-top:20px; display:flex; gap:8px; justify-content:center; flex-wrap:wrap;">
+            <button class="btn-secondary" onclick="exportMemory()" style="font-size:0.85em; padding:10px 14px;">💾 导出记忆数据</button>
+            <button class="btn-secondary" onclick="document.getElementById('importFile').click()" style="font-size:0.85em; padding:10px 14px;">📥 导入记忆数据</button>
+            <input type="file" id="importFile" accept=".json,application/json" style="display:none;" onchange="importMemory(this)">
+            <button class="btn-danger" onclick="resetAll()" style="font-size:0.85em; padding:10px 14px;">⚠️ 清空所有数据</button>
+        </div>
+    </div>
+</div>
+
+<!-- 开场问卷：每天第一次打开时弹出 -->
+<div class="modal-overlay hidden" id="greetModal">
+    <div class="modal">
+        <h2>👋 今天感觉怎么样？</h2>
+        <div class="sub">三道题，帮你安排今天学什么、学多少</div>
+        <div class="q-label">⏱️ 今天能学多久？</div>
+        <div class="opts" data-q="time">
+            <div class="opt" data-v="5">5 分钟</div>
+            <div class="opt" data-v="15">15 分钟</div>
+            <div class="opt" data-v="30">30 分钟</div>
+            <div class="opt" data-v="60">1 小时+</div>
+        </div>
+        <div class="q-label">🎯 今天想干什么？</div>
+        <div class="opts" data-q="goal">
+            <div class="opt" data-v="new">只学新的</div>
+            <div class="opt" data-v="review">只复习</div>
+            <div class="opt" data-v="light">都要 · 轻松</div>
+            <div class="opt" data-v="hard">都要 · 猛攻</div>
+            <div class="opt" data-v="streak">保住打卡就行</div>
+        </div>
+        <div class="q-label">🔋 现在的状态？</div>
+        <div class="opts" data-q="mood">
+            <div class="opt" data-v="great">精神不错</div>
+            <div class="opt" data-v="ok">一般</div>
+            <div class="opt" data-v="tired">有点累</div>
+            <div class="opt" data-v="low">很累，但想保住连续打卡</div>
+        </div>
+        <button class="go-btn" id="greetGo" disabled>开始今天的学习 →</button>
+    </div>
+</div>
+
+<script>
+// ==================== 版本隔离与自动清理 ====================
+// 每次迭代只改这一行，做题进度／打卡天数就会自动归零。
+const APP_VERSION = '1.0.0';
+
+// 存档拆成两套：
+//   sp_v<版本>_*  会话进度、打卡天数、今日计数 —— 换版本自动清空
+//   sp_memory_*   SRS 记忆调度数据 —— 跨版本永久保留（否则辛苦攒的记忆曲线一升级就没了）
+// file:// 打开的所有 HTML 共用同一个 localStorage，v5/v6 会互相读到对方的存档，
+// "新版本却说今天已做完"就是这么来的，所以必须靠前缀隔离。
+const STORE_PREFIX  = `sp_v${APP_VERSION}_`;
+const MEMORY_PREFIX = 'sp_memory_';
+let freshInstall = false;
+
+(function purgeOtherVersions() {
+    try {
+        const stale = [];
+        for (let i = 0; i < localStorage.length; i++) {
+            const k = localStorage.key(i);
+            if (!k) continue;
+            if (k.startsWith(MEMORY_PREFIX)) continue;            // 记忆数据永不自动清
+            if (k.startsWith('sp_v') && !k.startsWith(STORE_PREFIX)) stale.push(k);
+        }
+        // 3.0.0 之前的版本用的是无前缀键名，一并清掉
+        ['score','wrongList','checkins','dailyLimit','todayLearnedCount',
+         'dailyProgress','currentLessonId','appVersion'].forEach(k => {
+            if (localStorage.getItem(k) !== null) stale.push(k);
+        });
+        stale.forEach(k => localStorage.removeItem(k));
+        // 用安装标记判断是否首次运行本版本，比"分数为空"可靠
+        const marker = STORE_PREFIX + 'installed';
+        freshInstall = localStorage.getItem(marker) === null;
+        localStorage.setItem(marker, '1');
+    } catch(e) { /* 隐私模式下 localStorage 不可用，忽略即可 */ }
+})();
+
+// ==================== 知识难度梯度 ====================
+// 按西语真实习得顺序排列：先整块记忆的固定语，再逐步引入变位、疑问、否定，
+// 最后才是过去时。同一课内按这个梯度推进，梯度内部才随机打乱。
+const TIERS = {
+    1:  '固定寒暄语（整块记忆，无需变位）',
+    2:  'ser 断言句（身份 / 来源 / 性质）',
+    3:  '现在时 · 规则动词第一人称',
+    4:  '现在时 · 高频不规则动词 tener',
+    5:  '现在时 · 反身动词',
+    6:  '疑问句（疑问词 + 动词变位）',
+    7:  '否定句（no + 动词）',
+    8:  '简单过去时 · 规则 -ar',
+    9:  '简单过去时 · 规则 -er / -ir',
+    10: '简单过去时 · 不规则与反身',
+};
+
+// ==================== 课程数据（课时化 + 知识点标注） ====================
+const course = [
+    {
+        id: 1,
+        title: "第1课：问候与自我介绍",
+        summary: "问候、告别、自我介绍、动词 ser 和 llamarse",
+        difficulty: "入门",
+        length: "5 句",
+        sentences: [
+            { english: "Hello, how are you?", chinese: "你好，你好吗？", spanish: "Hola, ¿cómo estás?", tier: 1, point: "寒暄固定搭配" },
+            { english: "Good morning, nice to meet you.", chinese: "早上好，很高兴认识你。", spanish: "Buenos días, mucho gusto.", tier: 1, point: "问候 + 初次见面用语" },
+            { english: "See you later!", chinese: "回头见！", spanish: "¡Hasta luego!", tier: 1, point: "告别固定搭配" },
+            { english: "My name is Maria.", chinese: "我的名字是玛丽亚。", spanish: "Me llamo María.", tier: 5, point: "反身动词 llamarse（我：me llamo）" },
+            { english: "What is your name?", chinese: "你叫什么名字？", spanish: "¿Cómo te llamas?", tier: 6, point: "疑问词 cómo + 反身动词（你：te llamas）" }
+        ]
+    },
+    {
+        id: 2,
+        title: "第2课：数字与年龄",
+        summary: "数字1-10、询问年龄、动词 tener 的用法",
+        difficulty: "入门",
+        length: "4 句",
+        sentences: [
+            { english: "I am 25 years old.", chinese: "我25岁。", spanish: "Tengo veinticinco años.", tier: 4, point: "tener 第一人称 tengo + 西语用「有…岁」表年龄" },
+            { english: "I have one brother and one sister.", chinese: "我有一个哥哥和一个妹妹。", spanish: "Tengo un hermano y una hermana.", tier: 4, point: "tengo + 不定冠词阳性 un / 阴性 una" },
+            { english: "Do you have siblings?", chinese: "你有兄弟姐妹吗？", spanish: "¿Tienes hermanos?", tier: 6, point: "tener 第二人称 tienes（是否疑问句）" },
+            { english: "How old are you?", chinese: "你多大了？", spanish: "¿Cuántos años tienes?", tier: 6, point: "疑问词 cuántos + tienes" }
+        ]
+    },
+    {
+        id: 3,
+        title: "第3课：国家与语言",
+        summary: "国家、国籍、语言、动词 ser 和 hablar",
+        difficulty: "入门",
+        length: "5 句",
+        sentences: [
+            { english: "I am from China.", chinese: "我来自中国。", spanish: "Soy de China.", tier: 2, point: "ser 第一人称 soy + de 表来源" },
+            { english: "I speak a little Spanish.", chinese: "我说一点西班牙语。", spanish: "Hablo un poco de español.", tier: 3, point: "-ar 规则动词 hablar 第一人称 hablo" },
+            { english: "Where are you from?", chinese: "你来自哪里？", spanish: "¿De dónde eres?", tier: 6, point: "疑问词 dónde + ser 第二人称 eres" },
+            { english: "Do you speak Spanish?", chinese: "你说西班牙语吗？", spanish: "¿Hablas español?", tier: 6, point: "hablar 第二人称 hablas（是否疑问句）" },
+            { english: "I don't speak Spanish.", chinese: "我不说西班牙语。", spanish: "No hablo español.", tier: 7, point: "否定句：no 直接放动词前" }
+        ]
+    },
+    {
+        id: 4,
+        title: "第4课：家庭与过去时入门",
+        summary: "家庭词汇、物主形容词、简单过去时（hablar, ser, tener）",
+        difficulty: "入门-进阶",
+        length: "4 句",
+        sentences: [
+            { english: "My family is big.", chinese: "我的家庭很大。", spanish: "Mi familia es grande.", tier: 2, point: "物主形容词 mi + ser 第三人称 es" },
+            { english: "My mother is called Ana.", chinese: "我妈妈叫安娜。", spanish: "Mi madre se llama Ana.", tier: 5, point: "反身动词第三人称 se llama（对比 me llamo）" },
+            { english: "Yesterday I spoke with my father.", chinese: "昨天我和我爸爸说话了。", spanish: "Ayer hablé con mi padre.", tier: 8, point: "过去时 -ar 规则：hablo → hablé（重音在末音节）" },
+            { english: "Last week I went to my grandparents' house.", chinese: "上周我去了我祖父母家。", spanish: "La semana pasada fui a la casa de mis abuelos.", tier: 10, point: "不规则过去时 ir → fui（与 ser 同形，需靠语境分辨）" }
+        ]
+    },
+    {
+        id: 5,
+        title: "第5课：日常活动与规则动词",
+        summary: "日常活动、反身动词、-er/-ir 动词现在时和过去时",
+        difficulty: "进阶",
+        length: "9 句",
+        sentences: [
+            { english: "My daily routine is simple.", chinese: "我的日常作息很简单。", spanish: "Mi rutina diaria es simple.", tier: 2, point: "ser + 形容词，形容词跟名词保持阴性一致" },
+            { english: "I get up at seven in the morning.", chinese: "我早上七点起床。", spanish: "Me levanto a las siete de la mañana.", tier: 5, point: "反身动词 levantarse + 时间表达 a las…" },
+            { english: "What time do you go to bed?", chinese: "你几点睡觉？", spanish: "¿A qué hora te acuestas?", tier: 6, point: "疑问句 + 词干变化动词 acostarse（o → ue）" },
+            { english: "Yesterday I worked all day.", chinese: "昨天我工作了一整天。", spanish: "Ayer trabajé todo el día.", tier: 8, point: "过去时 -ar 规则：trabajo → trabajé" },
+            { english: "Yesterday I ate pasta for lunch.", chinese: "昨天我午餐吃了意大利面。", spanish: "Ayer comí pasta para el almuerzo.", tier: 9, point: "过去时 -er 规则：como → comí" },
+            { english: "He wrote a letter yesterday.", chinese: "他昨天写了一封信。", spanish: "Él escribió una carta ayer.", tier: 9, point: "过去时 -ir 第三人称：escribe → escribió" },
+            { english: "She lived in Shanghai last year.", chinese: "她去年住在上海。", spanish: "Ella vivió en Shanghai el año pasado.", tier: 9, point: "过去时 -ir 第三人称：vive → vivió" },
+            { english: "Last year we lived in Beijing.", chinese: "去年我们住在北京。", spanish: "El año pasado vivimos en Pekín.", tier: 9, point: "vivimos 现在时与过去时同形，只能靠时间词分辨" },
+            { english: "Last night I went to bed very late.", chinese: "昨晚我很晚才睡觉。", spanish: "Anoche me acosté muy tarde.", tier: 10, point: "过去时 + 反身：me acuesto → me acosté" }
+        ]
+    }
+];
+
+// ==================== 今日计划评估 ====================
+// 这里是纯规则表，不接 AI —— 输入只有三道选择题，几十种组合而已，查表就够了，
+// 而且系数摆在明面上，不满意随时能调。将来想换成模型调用，只改 planSession 一处。
+const TIME_BASE = { 5: 6, 15: 16, 30: 32, 60: 60 };          // 一句约 40~60 秒
+const MOODS = {
+    great: { label: '精神不错', mult: 1.15, energy: 100, tierCap: 99 },
+    ok:    { label: '一般',     mult: 1.00, energy: 80,  tierCap: 99 },
+    tired: { label: '有点累',   mult: 0.70, energy: 55,  tierCap: 8  },
+    low:   { label: '很累',     mult: 0.45, energy: 30,  tierCap: 6  },  // 累的时候不上过去时
+};
+const GOALS = {
+    new:    { label: '只学新的',     newPct: 1.0, revPct: 0.0 },
+    review: { label: '只复习',       newPct: 0.0, revPct: 1.0 },
+    light:  { label: '都要 · 轻松',  newPct: 0.4, revPct: 0.6 },
+    hard:   { label: '都要 · 猛攻',  newPct: 0.5, revPct: 0.5 },
+    streak: { label: '保住打卡就行', newPct: 0.4, revPct: 0.6, fixedTotal: 3 },
+};
+const MIN_NEW = 3;   // 新题保底：除非你选"只复习"，否则再多复习债也要给新内容
+
+function planSession(ans) {
+    const mood = MOODS[ans.mood] || MOODS.ok;
+    const goal = GOALS[ans.goal] || GOALS.light;
+    const base = TIME_BASE[ans.time] || TIME_BASE[15];
+
+    let total = goal.fixedTotal || Math.max(3, Math.round(base * mood.mult));
+    const maxTier = mood.tierCap;
+
+    let reviewCount = Math.round(total * goal.revPct);
+    let newCount    = total - reviewCount;
+
+    // 手里实际有多少货
+    const dueAvail = getDueSentences(maxTier).length;
+    const newAvail = getNewSentences(maxTier).length;
+
+    reviewCount = Math.min(reviewCount, dueAvail);
+    newCount    = Math.min(newCount, newAvail);
+
+    // 新题保底：复习债再多也不能让今天变成纯复习
+    if (goal.revPct < 1 && newCount < MIN_NEW) {
+        newCount = Math.min(MIN_NEW, newAvail);
+    }
+    // 复习没排满就把余量让给新题，反之亦然，别浪费你的时间预算
+    const slack = total - newCount - reviewCount;
+    if (slack > 0) {
+        if (goal.revPct < 1) newCount += Math.min(slack, newAvail - newCount);
+        const slack2 = total - newCount - reviewCount;
+        if (slack2 > 0 && goal.newPct < 1) reviewCount += Math.min(slack2, dueAvail - reviewCount);
+    }
+
+    return {
+        newCount, reviewCount, maxTier,
+        total: newCount + reviewCount,
+        energy: mood.energy,
+        deferred: Math.max(0, dueAvail - reviewCount),   // 顺延的复习量，界面上要明说
+        dueAvail, newAvail,
+        moodLabel: mood.label, goalLabel: goal.label, time: ans.time,
+        date: getTodayStr(),
+    };
+}
+
+// 复习穿插进新题之间，避免连着做二十道复习的疲劳感
+function interleave(news, reviews) {
+    const out = [];
+    const n = news.length, r = reviews.length;
+    if (n === 0) return reviews.slice();
+    if (r === 0) return news.slice();
+    let ri = 0;
+    const gap = r / (n + 1);
+    for (let i = 0; i < n; i++) {
+        const want = Math.round(gap * (i + 1));
+        while (ri < want && ri < r) out.push(reviews[ri++]);
+        out.push(news[i]);
+    }
+    while (ri < r) out.push(reviews[ri++]);
+    return out;
+}
+
+function buildSessionQueue(plan) {
+    const reviews = getDueSentences(plan.maxTier).slice(0, plan.reviewCount)
+        .map(s => ({ ...s, _review: true }));
+    const news    = getNewSentences(plan.maxTier).slice(0, plan.newCount)
+        .map(s => ({ ...s, _review: false }));
+    return interleave(news, reviews);
+}
+
+// ==================== 状态 ====================
+let currentLessonId = 1;          // 当前课时 ID
+let currentLesson = course[0];    // 当前课时对象
+let sentenceQueue = [];           // 当前课时已打乱的句子队列
+let queueIndex = 0;               // 当前做到队列中的索引
+let currentSentence = null;       // 当前显示的句子
+
+let score = 0;
+let attempts = 0;
+let hintUsed = false;
+let todayLearnedCount = 0;
+let dailyLimit = 10;
+let wrongList = [];
+let checkins = {};
+let cards = {};   // SRS 记忆卡（见下方 SRS 模块）
+
+// 今日计划（SRS 模式）
+const MODE_PLAN = '__plan__';                 // 课时选择下拉里的"今日计划"选项值
+let mode = MODE_PLAN;                          // 当前模式：MODE_PLAN 或 课时 ID
+let sessionPlan = null;                        // planSession() 的结果
+let sessionQueue = [];                         // 今日计划模式下的混合队列（新题+复习穿插）
+let sessionIndex = 0;                          // 计划模式做到第几题
+let sessionCompleted = 0;                      // 计划模式已完成题数（答对/基本对）
+let planPersist = null;                        // 进度存档 { date, plan, idx, completed, queue }
+
+// ==================== 本地存储 ====================
+function saveData(key, data) {
+    try {
+        localStorage.setItem(STORE_PREFIX + key, JSON.stringify(data));
+    } catch(e) {
+        console.log('存储失败', e);
+    }
+}
+function loadData(key, defaultValue) {
+    try {
+        const data = localStorage.getItem(STORE_PREFIX + key);
+        return data ? JSON.parse(data) : defaultValue;
+    } catch(e) {
+        return defaultValue;
+    }
+}
+// 防止存档损坏后算出 NaN，之后分数会一路 NaN 下去
+function toInt(value, fallback) {
+    const n = parseInt(value, 10);
+    return Number.isFinite(n) ? n : fallback;
+}
+function saveDailyProgress() {
+    saveData('dailyProgress', { date: getTodayStr(), count: todayLearnedCount });
+}
+
+// ---- 记忆数据（跨版本保留，跟上面那套完全隔离）----
+function saveMemory(key, data) {
+    try { localStorage.setItem(MEMORY_PREFIX + key, JSON.stringify(data)); }
+    catch(e) { console.log('记忆存储失败', e); }
+}
+function loadMemory(key, defaultValue) {
+    try {
+        const data = localStorage.getItem(MEMORY_PREFIX + key);
+        return data ? JSON.parse(data) : defaultValue;
+    } catch(e) { return defaultValue; }
+}
+
+// ==================== SRS 间隔重复调度 ====================
+// 每句的记忆卡：{ ivl 间隔天数, ease 难度系数, lapses 失误次数, reps 复习次数, due 到期日 }
+
+// 用西语原文生成稳定 ID：调整句子顺序、改中英文翻译都不会丢记忆数据
+function cardId(sentence) {
+    const s = normalize(sentence.spanish);
+    let h = 0;
+    for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
+    return 'c' + (h >>> 0).toString(36);
+}
+
+// 失误越多，间隔上限压得越死 —— 一道反复错的句子永远不会消失超过 10 天
+function maxInterval(lapses) {
+    if (lapses >= 4) return 10;    // 顽固
+    if (lapses >= 2) return 21;    // 偏难
+    return 60;                     // 正常
+}
+function cardLevel(card) {
+    if (!card || card.reps === 0) return 'new';
+    if (card.lapses >= 4) return 'leech';
+    if (card.lapses >= 2) return 'hard';
+    if (card.ivl >= 21) return 'mastered';
+    return 'learning';
+}
+
+function daysBetween(fromStr, toStr) {
+    const a = new Date(fromStr + 'T00:00:00');
+    const b = new Date(toStr + 'T00:00:00');
+    return Math.round((b - a) / 86400000);
+}
+function addDays(dateStr, n) {
+    const d = new Date(dateStr + 'T00:00:00');
+    d.setDate(d.getDate() + n);
+    return formatDate(d);
+}
+
+function getCard(sentence) {
+    const id = cardId(sentence);
+    if (!cards[id]) cards[id] = { ivl: 0, ease: 2.5, lapses: 0, reps: 0, due: getTodayStr() };
+    return cards[id];
+}
+
+// 判分结果 → 调度。quality: 5=完全对 4=基本对 2=一半 0=错
+function scheduleCard(sentence, quality) {
+    const card = getCard(sentence);
+    const today = getTodayStr();
+    if (quality < 3) {
+        // 忘了：打回 1 天重来，并调低难度系数（以后间隔涨得更慢）
+        card.lapses += 1;
+        card.ivl = 1;
+        card.ease = Math.max(1.3, card.ease - 0.2);
+    } else {
+        if (card.reps === 0)      card.ivl = 1;
+        else if (card.reps === 1) card.ivl = 3;
+        else                      card.ivl = Math.round(card.ivl * card.ease);
+        if (quality === 5) card.ease = Math.min(2.8, card.ease + 0.1);
+        card.ivl = Math.min(card.ivl, maxInterval(card.lapses));   // 难题封顶
+    }
+    card.reps += 1;
+    card.due = addDays(today, Math.max(1, card.ivl));
+    card.last = today;
+    cards[cardId(sentence)] = card;
+    saveMemory('cards', cards);
+    return card;
+}
+
+function statusToQuality(status) {
+    if (status === 'perfect' || status === 'perfect-typo') return 5;
+    if (status === 'good')    return 4;
+    if (status === 'partial') return 2;
+    return 0;
+}
+
+// 全部句子（跨课时）
+function allSentences() {
+    return course.flatMap(l => l.sentences.map(s => ({ ...s, lessonId: l.id, lessonTitle: l.title })));
+}
+// 今日到期的复习卡，逾期最久的排前面
+function getDueSentences(maxTier) {
+    const today = getTodayStr();
+    return allSentences()
+        .filter(s => (s.tier || 1) <= maxTier)
+        .map(s => ({ s, card: cards[cardId(s)] }))
+        .filter(x => x.card && x.card.reps > 0 && daysBetween(x.card.due, today) >= 0)
+        .sort((a, b) => daysBetween(b.card.due, today) - daysBetween(a.card.due, today))
+        .map(x => x.s);
+}
+// 没学过的新句子，按知识梯度递进、层内随机
+function getNewSentences(maxTier) {
+    const fresh = allSentences().filter(s => {
+        const c = cards[cardId(s)];
+        return (!c || c.reps === 0) && (s.tier || 1) <= maxTier;
+    });
+    return buildQueue(fresh);
+}
+
+// ==================== 开场问卷与今日计划 ====================
+function persistSession() {
+    planPersist = {
+        date: getTodayStr(),
+        plan: sessionPlan,
+        idx: sessionIndex,
+        completed: sessionCompleted,
+        queue: sessionQueue.map(s => s.spanish),
+    };
+    saveData('dailySession', planPersist);
+}
+
+function startSession(ans) {
+    sessionPlan = planSession(ans);
+    mode = MODE_PLAN;
+    sessionQueue = buildSessionQueue(sessionPlan);
+    sessionIndex = 0;
+    sessionCompleted = 0;
+    markLearned();   // 规划了就算今天来过（哪怕计划很小，也别断了连续打卡）
+    persistSession();
+    saveData('currentLessonId', MODE_PLAN);
+    document.getElementById('lessonSelect').value = MODE_PLAN;
+    updateLessonInfo();
+    renderPlanBanner();
+    loadCurrentSentence();
+    updateProgress();
+}
+
+function renderPlanBanner() {
+    const p = sessionPlan;
+    if (!p) return;
+    const el = document.getElementById('planBanner');
+    el.classList.remove('hidden');
+    const done = Math.min(sessionCompleted, p.total);
+    el.innerHTML = `
+        <div class="pb-row">
+            <span>📋 <b>今日计划</b>：${p.goalLabel} · ${p.moodLabel}</span>
+            <span>🔋 电量 ${p.energy}% <span class="battery"><i style="width:${p.energy}%"></i></span></span>
+        </div>
+        <div class="pb-row">
+            <span>新题 ${p.newCount} ＋ 复习 ${p.reviewCount} ＝ ${p.total} 句</span>
+            <span>已完成 ${done} / ${p.total}</span>
+        </div>
+        <div class="pb-row">
+            <span class="pb-label">顺延复习 ${p.deferred} 句（按你的电量安排的，没有消失）</span>
+            <a onclick="replanToday()">📋 重新规划今天</a>
+        </div>
+    `;
+}
+
+function replanToday() {
+    const { showGreetingModal } = greetingApi;
+    showGreetingModal();
+}
+
+// 问卷弹窗：今天只弹一次（选了"重新规划"除外）
+const greetingApi = {};
+(function setupGreeting() {
+    const sel = { time: null, goal: null, mood: null };
+    const goBtn = document.getElementById('greetGo');
+    const overlay = document.getElementById('greetModal');
+
+    document.querySelectorAll('#greetModal .opts').forEach(group => {
+        group.addEventListener('click', e => {
+            const opt = e.target.closest('.opt');
+            if (!opt) return;
+            const q = group.dataset.q;
+            group.querySelectorAll('.opt').forEach(o => o.classList.remove('sel'));
+            opt.classList.add('sel');
+            sel[q] = opt.dataset.v;
+            goBtn.disabled = !(sel.time && sel.goal && sel.mood);
+        });
+    });
+
+    goBtn.addEventListener('click', () => {
+        if (!(sel.time && sel.goal && sel.mood)) return;
+        overlay.classList.add('hidden');
+        startSession({ time: +sel.time, goal: sel.goal, mood: sel.mood });
+    });
+
+    // 选过的答案留到下次弹窗（同一天重规划时不用重选）
+    function showGreetingModal() {
+        if (sessionPlan) {
+            sel.time = String(sessionPlan.time);
+            sel.goal = Object.keys(GOALS).find(k => GOALS[k].label === sessionPlan.goalLabel);
+            sel.mood  = Object.keys(MOODS).find(k => MOODS[k].label === sessionPlan.moodLabel);
+        }
+        document.querySelectorAll('#greetModal .opts').forEach(group => {
+            group.querySelectorAll('.opt').forEach(o => {
+                o.classList.toggle('sel', o.dataset.v === sel[group.dataset.q]);
+            });
+        });
+        goBtn.disabled = !(sel.time && sel.goal && sel.mood);
+        overlay.classList.remove('hidden');
+    }
+    greetingApi.showGreetingModal = showGreetingModal;
+})();
+
+// ==================== 初始化 ====================
+function init() {
+    wrongList = loadData('wrongList', []);
+    checkins = loadData('checkins', {});
+    score = toInt(loadData('score', 0), 0);
+    dailyLimit = toInt(loadData('dailyLimit', 10), 10);
+    cards = loadMemory('cards', {});
+
+    // 每日计数必须跟日期绑定，否则累计到上限后会被永久锁死
+    const progress = loadData('dailyProgress', null);
+    if (progress && progress.date === getTodayStr()) {
+        todayLearnedCount = toInt(progress.count, 0);
+    } else {
+        todayLearnedCount = 0;
+        saveDailyProgress();
+    }
+
+    document.getElementById('wrongCount').textContent = wrongList.length;
+    document.getElementById('scoreDisplay').textContent = score;
+    document.getElementById('newToday').textContent = todayLearnedCount;
+
+    // 填充课时选择下拉框（第一个选项是今日计划）
+    const select = document.getElementById('lessonSelect');
+    select.innerHTML = '';
+    const planOpt = document.createElement('option');
+    planOpt.value = MODE_PLAN;
+    planOpt.textContent = '📋 今日计划（SRS 智能复习）';
+    select.appendChild(planOpt);
+    course.forEach(lesson => {
+        const option = document.createElement('option');
+        option.value = lesson.id;
+        option.textContent = `${lesson.title}　·　${lesson.difficulty}　·　${lesson.sentences.length} 句`;
+        select.appendChild(option);
+    });
+
+    // 恢复上次的模式/课时；课时不存在时回退到今日计划
+    const savedLessonId = loadData('currentLessonId', MODE_PLAN);
+    currentLessonId = String(savedLessonId) === MODE_PLAN
+        ? MODE_PLAN
+        : (course.some(l => String(l.id) === String(savedLessonId)) ? savedLessonId : MODE_PLAN);
+    select.value = currentLessonId;
+
+    // 恢复今日计划会话（SRS 队列要能跨刷新续做）
+    const session = loadData('dailySession', null);
+    if (session && session.date === getTodayStr() && session.plan && Array.isArray(session.queue)) {
+        sessionPlan = session.plan;
+        mode = MODE_PLAN;
+        sessionIndex = toInt(session.idx, 0);
+        sessionCompleted = toInt(session.completed, 0);
+        const bySpanish = {};
+        allSentences().forEach(s => { bySpanish[s.spanish] = s; });
+        sessionQueue = session.queue
+            .map(sp => bySpanish[sp])
+            .filter(Boolean)
+            .map(s => ({ ...s, _review: (cards[cardId(s)] || {}).reps > 0 }));
+        if (sessionQueue.length === 0) { sessionPlan = null; mode = MODE_PLAN; }
+        updateLessonInfo();
+        renderPlanBanner();
+        loadCurrentSentence();
+        updateProgress();
+    } else {
+        if (String(currentLessonId) === MODE_PLAN) {
+            mode = MODE_PLAN;
+            updateLessonInfo();
+            greetingApi.showGreetingModal();      // 今天第一次打开 → 弹问卷
+        } else {
+            loadLesson(currentLessonId);
+        }
+    }
+
+    renderStats();
+
+    document.getElementById('versionTag').textContent =
+        `v${APP_VERSION}` + (freshInstall ? '　·　已为新版本重置进度（记忆曲线保留）' : '');
+}
+
+// 加载指定课时，并随机打乱句子队列
+function loadLesson(lessonId) {
+    const lesson = course.find(l => l.id === lessonId);
+    if (!lesson) return;
+    mode = lessonId;                     // 切换到课时模式
+    currentLesson = lesson;
+    currentLessonId = lessonId;
+
+    sentenceQueue = buildQueue(lesson.sentences);
+    queueIndex = 0;
+
+    // 显示课时信息
+    updateLessonInfo();
+    // 显示第一句
+    loadCurrentSentence();
+    updateProgress();
+}
+
+// 更新课时信息显示
+function updateLessonInfo() {
+    const infoDiv = document.getElementById('lessonInfo');
+    if (mode === MODE_PLAN) {
+        if (!sessionPlan) {
+            infoDiv.innerHTML = `<strong>今日计划</strong><br>还没规划今天——点击下方「📋 重新规划今天」开始。`;
+            return;
+        }
+        const p = sessionPlan;
+        infoDiv.innerHTML = `
+            <strong>今日计划（SRS 智能复习）</strong><br>
+            新题 ${p.newCount} ＋ 到期复习 ${p.reviewCount} ＝ 共 ${p.total} 句　|
+            记忆难度上限：L${p.maxTier}　|　顺延复习：${p.deferred} 句
+        `;
+        return;
+    }
+    const tiers = lessonTiers(currentLesson);
+    const ladder = tiers.map(t => `<li>L${t}　${TIERS[t] || '—'}</li>`).join('');
+    infoDiv.innerHTML = `
+        知识点：${currentLesson.summary}<br>
+        难度：${currentLesson.difficulty}　|　句子数量：${currentLesson.sentences.length}　|　梯度：L${tiers[0]} → L${tiers[tiers.length-1]}
+        <div style="margin-top:8px;"><strong>本课按此顺序推进（每层内部随机）：</strong>
+        <ul style="margin:6px 0 0 18px; line-height:1.7;">${ladder}</ul></div>
+    `;
+}
+
+// 随机打乱数组
+function shuffleArray(arr) {
+    for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+}
+
+// 知识分层出题：按 tier 从低到高分组，组内随机、组间不跨越。
+// 这样既不会每次都是同一个顺序，也不会在还没练熟现在时的时候突然蹦出过去时。
+function buildQueue(sentences) {
+    const byTier = new Map();
+    sentences.forEach(s => {
+        const tier = s.tier || 1;
+        if (!byTier.has(tier)) byTier.set(tier, []);
+        byTier.get(tier).push(s);
+    });
+    const queue = [];
+    [...byTier.keys()].sort((a, b) => a - b).forEach(tier => {
+        const group = byTier.get(tier).slice();
+        shuffleArray(group);          // 层内随机
+        queue.push(...group);         // 层间保持难度递进
+    });
+    return queue;
+}
+
+// 课时涉及的知识梯度（用于课时信息展示）
+function lessonTiers(lesson) {
+    return [...new Set(lesson.sentences.map(s => s.tier || 1))].sort((a, b) => a - b);
+}
+
+// 加载当前队列中的句子
+function loadCurrentSentence() {
+    if (mode === MODE_PLAN) {
+        if (sessionIndex >= sessionQueue.length) {
+            showSessionComplete();
+            return;
+        }
+        currentSentence = sessionQueue[sessionIndex];
+    } else {
+        if (queueIndex >= sentenceQueue.length) {
+            // 本课时所有句子已完成
+            document.getElementById('pointBanner').innerHTML = '';
+            document.getElementById('englishText').textContent = '';
+            document.getElementById('chineseText').textContent = '';
+            document.getElementById('spanishText').textContent = '';
+            document.getElementById('spanishText').classList.add('blurred');
+            document.getElementById('feedback').textContent = '🎉 本课时所有句子已完成！请选择其他课时或复习错题。';
+            document.getElementById('feedback').className = 'feedback';
+            currentSentence = null;
+            return;
+        }
+        currentSentence = sentenceQueue[queueIndex];
+    }
+
+    const tier = currentSentence.tier || 1;
+    const badge = currentSentence._review
+        ? '<span class="tier-badge" style="background:var(--blue);">复习</span>'
+        : '<span class="tier-badge" style="background:var(--green);">新题</span>';
+    document.getElementById('pointBanner').innerHTML =
+        `${badge}<span class="tier-badge">L${tier}</span>${currentSentence.point || TIERS[tier] || ''}` +
+        (mode === MODE_PLAN ? `　<span style="color:#888;">（来自：${currentSentence.lessonTitle || ''}）</span>` : '');
+    document.getElementById('englishText').textContent = currentSentence.english;
+    document.getElementById('chineseText').textContent = currentSentence.chinese;
+    document.getElementById('spanishText').textContent = currentSentence.spanish;
+    document.getElementById('spanishText').classList.add('blurred');
+    document.getElementById('userInput').value = '';
+    document.getElementById('feedback').textContent = '';
+    document.getElementById('feedback').className = 'feedback';
+    hintUsed = false;
+}
+
+function showSessionComplete() {
+    document.getElementById('pointBanner').innerHTML = '';
+    document.getElementById('englishText').textContent = '';
+    document.getElementById('chineseText').textContent = '';
+    document.getElementById('spanishText').textContent = '';
+    document.getElementById('spanishText').classList.add('blurred');
+    document.getElementById('feedback').textContent =
+        `🎉 今日计划完成！${sessionPlan ? sessionPlan.total : ''} 句全部做完，打卡已记录。\n还有余力？去复习错题，或点下方「重新规划」加练。`;
+    document.getElementById('feedback').className = 'feedback';
+    currentSentence = null;
+}
+
+// 切换课时（下拉框事件）
+function changeLesson(lessonId) {
+    if (lessonId === MODE_PLAN) {
+        mode = MODE_PLAN;
+        saveData('currentLessonId', MODE_PLAN);
+        updateLessonInfo();
+        if (planPersist) {
+            // 恢复今日计划进度
+            sessionIndex = planPersist.idx;
+            sessionCompleted = planPersist.completed;
+            loadCurrentSentence();
+        } else {
+            document.getElementById('feedback').textContent = '还没规划今天——点击「📋 重新规划今天」。';
+            document.getElementById('feedback').className = 'feedback';
+        }
+        updateProgress();
+        return;
+    }
+    const id = toInt(lessonId, course[0].id);
+    saveData('currentLessonId', id);
+    loadLesson(id);
+}
+
+// ==================== 核心判断逻辑 ====================
+function normalize(str) {
+    if (!str) return '';
+    let s = str.toLowerCase();
+    s = s.replace(/á/g, 'a').replace(/é/g, 'e').replace(/í/g, 'i')
+         .replace(/ó/g, 'o').replace(/ú/g, 'u').replace(/ü/g, 'u')
+         .replace(/ñ/g, 'n');
+    s = s.replace(/[^a-z0-9\s]/g, '');
+    s = s.replace(/\s+/g, ' ').trim();
+    return s;
+}
+
+function toWordArray(str) {
+    const normalized = normalize(str);
+    return normalized ? normalized.split(' ') : [];
+}
+
+// 编辑距离，用于容忍键盘打字的拼写小误
+function editDistance(a, b) {
+    if (a === b) return 0;
+    if (Math.abs(a.length - b.length) > 2) return 99;   // 差太多，不必细算
+    let prev = Array.from({ length: b.length + 1 }, (_, i) => i);
+    for (let i = 1; i <= a.length; i++) {
+        const cur = [i];
+        for (let j = 1; j <= b.length; j++) {
+            const cost = a[i-1] === b[j-1] ? 0 : 1;
+            cur[j] = Math.min(prev[j] + 1, cur[j-1] + 1, prev[j-1] + cost);
+        }
+        prev = cur;
+    }
+    return prev[b.length];
+}
+
+// 词越长越宽容；3 个字母以内必须全对，否则 es/en、mi/me 这类会互相误判
+function allowedTypos(word) {
+    if (word.length <= 3) return 0;
+    if (word.length <= 6) return 1;
+    return 2;
+}
+
+function matchWords(correctWords, userWords) {
+    const matchedCorrect = [];
+    const usedUserIndices = new Set();
+    const matchedCorrectIndices = new Set();
+
+    // 第一轮：全等匹配优先，避免近似匹配抢走本该精确匹配的词
+    for (let i = 0; i < correctWords.length; i++) {
+        for (let j = 0; j < userWords.length; j++) {
+            if (usedUserIndices.has(j)) continue;
+            if (correctWords[i] === userWords[j]) {
+                matchedCorrect.push({ word: correctWords[i], index: i, typo: false, userWord: userWords[j] });
+                matchedCorrectIndices.add(i);
+                usedUserIndices.add(j);
+                break;
+            }
+        }
+    }
+
+    // 第二轮：剩下的词做容错匹配，取编辑距离最小的那个
+    for (let i = 0; i < correctWords.length; i++) {
+        if (matchedCorrectIndices.has(i)) continue;
+        const budget = allowedTypos(correctWords[i]);
+        if (budget === 0) continue;
+        let best = -1, bestDist = budget + 1;
+        for (let j = 0; j < userWords.length; j++) {
+            if (usedUserIndices.has(j)) continue;
+            const dist = editDistance(correctWords[i], userWords[j]);
+            if (dist <= budget && dist < bestDist) { best = j; bestDist = dist; }
+        }
+        if (best !== -1) {
+            matchedCorrect.push({ word: correctWords[i], index: i, typo: true, userWord: userWords[best] });
+            matchedCorrectIndices.add(i);
+            usedUserIndices.add(best);
+        }
+    }
+
+    matchedCorrect.sort((x, y) => x.index - y.index);
+    const matchRate = correctWords.length > 0 ? matchedCorrect.length / correctWords.length : 0;
+    return { matchRate, matchedCorrect, matchedCorrectIndices, usedUserIndices, totalCorrect: correctWords.length, matchedCount: matchedCorrect.length };
+}
+
+function judgeAnswer(correctStr, userStr) {
+    const correctWords = toWordArray(correctStr);
+    const userWords = toWordArray(userStr);
+    if (correctWords.length === 0) {
+        return { status: 'no-correct', matchRate: 0, matchedCorrect: [], unmatchedCorrect: correctWords, extraUserWords: userWords };
+    }
+    // 计算匹配
+    const result = matchWords(correctWords, userWords);
+    const unmatchedCorrect = correctWords
+        .map((word, index) => ({ word, index }))
+        .filter(item => !result.matchedCorrectIndices.has(item.index));
+    // 多写的词：直接复用匹配阶段用掉的下标，保证与判分口径一致
+    const extraUserWords = userWords.filter((_, i) => !result.usedUserIndices.has(i));
+    const typos = result.matchedCorrect.filter(m => m.typo);
+
+    const matchRate = result.matchRate;
+    let status;
+    if (matchRate >= 1) {
+        status = typos.length > 0 ? 'perfect-typo' : 'perfect';
+    } else if (matchRate >= 0.75) {
+        status = 'good';
+    } else if (matchRate >= 0.5) {
+        status = 'partial';
+    } else {
+        status = 'wrong';
+    }
+    return { status, matchRate, matchedCorrect: result.matchedCorrect, unmatchedCorrect, extraUserWords, typos };
+}
+
+// ==================== 学习模式交互 ====================
+function toggleSpanish() {
+    document.getElementById('spanishText').classList.toggle('blurred');
+}
+
+function checkAnswer() {
+    if (!currentSentence) return;
+    const userRaw = document.getElementById('userInput').value.trim();
+    const feedbackEl = document.getElementById('feedback');
+    if (!userRaw) {
+        feedbackEl.textContent = '⚠️ 请输入答案';
+        feedbackEl.className = 'feedback incorrect';
+        return;
+    }
+    const result = judgeAnswer(currentSentence.spanish, userRaw);
+    // 每次作答都推进 SRS 调度：答对拉长间隔、答错打回 1 天（难题有封顶）
+    scheduleCard(currentSentence, statusToQuality(result.status));
+
+    if (result.status === 'perfect' || result.status === 'perfect-typo') {
+        const points = hintUsed ? 1 : 2;
+        score += points;
+        const typoMsg = result.typos.length > 0
+            ? `（拼写小误已算对：${result.typos.map(t => `${t.userWord} → ${t.word}`).join('，')}）`
+            : '';
+        feedbackEl.textContent = `✅ 完全正确！+${points}分 ${typoMsg}`;
+        feedbackEl.className = 'feedback correct';
+        document.getElementById('scoreDisplay').textContent = score;
+        saveData('score', score);
+        removeWrongItem(currentSentence.spanish);
+        revealAnswer(true);
+    } else if (result.status === 'good') {
+        const points = hintUsed ? 0 : 1;
+        score += points;
+        const parts = [];
+        if (result.unmatchedCorrect.length > 0) parts.push(`还差：${result.unmatchedCorrect.map(m => m.word).join(', ')}`);
+        if (result.extraUserWords.length > 0) parts.push(`多写了：${result.extraUserWords.join(', ')}（不扣分）`);
+        feedbackEl.textContent = `⚠️ 基本正确！+${points}分 ${parts.length ? '（' + parts.join('；') + '）' : ''}`;
+        feedbackEl.className = 'feedback correct';
+        document.getElementById('scoreDisplay').textContent = score;
+        saveData('score', score);
+        removeWrongItem(currentSentence.spanish);
+        revealAnswer(true);
+    } else if (result.status === 'partial') {
+        const matchedWords = result.matchedCorrect.map(m => m.word).join(', ');
+        const missedWords = result.unmatchedCorrect.map(m => m.word).join(', ');
+        feedbackEl.textContent = `💡 已正确写出：${matchedWords || '无'}。还差：${missedWords}`;
+        feedbackEl.className = 'feedback';
+    } else {
+        const matchedWords = result.matchedCorrect.map(m => m.word).join(', ');
+        if (matchedWords) {
+            feedbackEl.textContent = `❌ 部分正确：${matchedWords}。但整体不完整，再试试`;
+        } else {
+            feedbackEl.textContent = '❌ 不正确，再试试或查看提示';
+        }
+        feedbackEl.className = 'feedback incorrect';
+        addWrongItem(currentSentence);
+    }
+}
+
+function removeWrongItem(spanish) {
+    const idx = wrongList.findIndex(item => item.spanish === spanish);
+    if (idx !== -1) {
+        wrongList.splice(idx, 1);
+        saveData('wrongList', wrongList);
+        document.getElementById('wrongCount').textContent = wrongList.length;
+    }
+}
+
+function addWrongItem(sentence) {
+    if (!wrongList.some(item => item.spanish === sentence.spanish)) {
+        wrongList.push(sentence);
+        saveData('wrongList', wrongList);
+        document.getElementById('wrongCount').textContent = wrongList.length;
+    }
+}
+
+function showHint() {
+    if (!currentSentence) return;
+    const words = currentSentence.spanish.split(' ');
+    let hint = words.map(w => {
+        const clean = w.replace(/[.,!?¿¡;:'"()]/g, '');
+        if (!clean) return w;   // 纯标点，否则 repeat(-1) 会直接抛错
+        return clean[0] + '·'.repeat(clean.length - 1);
+    }).join(' ');
+    document.getElementById('feedback').textContent = `💡 提示：${hint}`;
+    document.getElementById('feedback').className = 'feedback';
+    hintUsed = true;
+}
+
+// silent=true 时只展开答案，不覆盖已有的判分反馈
+function revealAnswer(silent) {
+    if (!currentSentence) return;
+    const highlighted = currentSentence.spanish.replace(/([áéíóúüñ¿¡])/g, '<mark>$1</mark>');
+    const spanishEl = document.getElementById('spanishText');
+    spanishEl.innerHTML = highlighted;
+    spanishEl.classList.remove('blurred');
+    if (silent === true) return;
+    document.getElementById('feedback').textContent = '👁 答案已显示，特殊字符已高亮';
+    document.getElementById('feedback').className = 'feedback';
+}
+
+let limitAcknowledged = false;   // 今天已确认过“超额继续”，就不再反复弹窗
+function nextQuestion() {
+    if (!currentSentence) return;
+    if (mode === MODE_PLAN) {
+        // 计划模式：每点一次"下一题"完成一题。答错也会排进 SRS，1 天后还会回来。
+        sessionIndex++;
+        sessionCompleted++;
+        persistSession();
+        document.getElementById('newToday').textContent = sessionCompleted;
+        todayLearnedCount = sessionCompleted;
+        saveDailyProgress();
+        renderPlanBanner();
+        loadCurrentSentence();
+        updateProgress();
+        markLearned();
+        return;
+    }
+    // 课时自由模式：保留每日上限提醒
+    if (todayLearnedCount >= dailyLimit && !limitAcknowledged) {
+        const goOn = confirm(`今天的新题目标已完成（${dailyLimit} 题）！\n\n点“确定”继续多学一些，点“取消”去复习错题或做精听。`);
+        if (!goOn) return;
+        limitAcknowledged = true;   // 状态不落盘，刷新后重新提醒一次
+    }
+    // 移动到下一句
+    queueIndex++;
+    todayLearnedCount++;
+    document.getElementById('newToday').textContent = todayLearnedCount;
+    saveDailyProgress();
+    loadCurrentSentence();
+    updateProgress();
+    markLearned();
+}
+
+function updateProgress() {
+    if (mode === MODE_PLAN) {
+        const total = sessionPlan ? sessionPlan.total : sessionQueue.length;
+        const done = Math.min(sessionCompleted, total);
+        document.getElementById('progressFill').style.width =
+            total > 0 ? (done / total) * 100 + '%' : '0%';
+        return;
+    }
+    const total = sentenceQueue.length;
+    const done = queueIndex;
+    const progress = total > 0 ? (done / total) * 100 : 0;
+    document.getElementById('progressFill').style.width = progress + '%';
+}
+
+function saveSettings() {
+    // 每日新题数不再手动设置，由开场问卷的 planSession 决定
+    saveData('dailyLimit', dailyLimit);
+}
+
+// ==================== 错题模式 ====================
+function switchTab(tab) {
+    document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('nav button').forEach(el => el.classList.remove('active'));
+    document.getElementById(tab).classList.add('active');
+    const btns = document.querySelectorAll('nav button');
+    const idx = ['learn','review','dictation','stats'].indexOf(tab);
+    if (idx >= 0) btns[idx].classList.add('active');
+    if (tab === 'review') renderReview();
+    if (tab === 'stats') renderStats();
+}
+
+function renderReview() {
+    const container = document.getElementById('reviewContent');
+    if (wrongList.length === 0) {
+        container.innerHTML = '<p style="text-align:center; color:#aaa; padding:30px 0;">🎉 暂无错题</p>';
+        return;
+    }
+    let html = '';
+    wrongList.forEach((item, idx) => {
+        html += `
+            <div class="review-item">
+                <div class="lang-label" style="color:var(--blue);">🇬🇧 ${item.english}</div>
+                <div class="lang-label" style="color:var(--red); margin-top:4px;">🇨🇳 ${item.chinese}</div>
+                <div class="lang-label" style="color:var(--accent); margin-top:4px;">🇪🇸 <span class="blurred" onclick="this.classList.toggle('blurred')">${item.spanish}</span></div>
+                <input type="text" id="reviewInput${idx}" placeholder="输入西语...">
+                <div style="display:flex; gap:8px; align-items:center; margin-top:8px;">
+                    <button class="btn-success" onclick="checkReviewAnswer(${idx})" style="padding:10px 16px;">检查</button>
+                    <span id="reviewFeedback${idx}" class="review-feedback"></span>
+                </div>
+            </div>
+        `;
+    });
+    container.innerHTML = html;
+}
+
+function checkReviewAnswer(idx) {
+    const item = wrongList[idx];
+    if (!item) return;
+    const input = document.getElementById(`reviewInput${idx}`).value;
+    const result = judgeAnswer(item.spanish, input);
+    const feedbackEl = document.getElementById(`reviewFeedback${idx}`);
+    if (result.status === 'perfect' || result.status === 'perfect-typo' || result.status === 'good') {
+        feedbackEl.textContent = '✅ 正确！已移除';
+        feedbackEl.className = 'review-feedback correct';
+        // 按内容删除而不是按下标，避免 800ms 内连点两题时删错条目
+        const realIdx = wrongList.findIndex(w => w.spanish === item.spanish);
+        if (realIdx !== -1) wrongList.splice(realIdx, 1);
+        saveData('wrongList', wrongList);
+        document.getElementById('wrongCount').textContent = wrongList.length;
+        setTimeout(renderReview, 800);
+        markReviewed();
+    } else if (result.status === 'partial') {
+        const matchedWords = result.matchedCorrect.map(m => m.word).join(', ');
+        const missedWords = result.unmatchedCorrect.map(m => m.word).join(', ');
+        feedbackEl.textContent = `💡 已对：${matchedWords || '无'}。还差：${missedWords}`;
+        feedbackEl.className = 'review-feedback';
+    } else {
+        feedbackEl.textContent = '❌ 再试试';
+        feedbackEl.className = 'review-feedback incorrect';
+    }
+}
+
+// ==================== 精听模式 ====================
+let dictationTextFull = '';
+function loadAudio(input) {
+    const file = input.files[0];
+    if (file) {
+        const url = URL.createObjectURL(file);
+        const player = document.getElementById('audioPlayer');
+        player.src = url;
+        document.getElementById('dictationPlayer').classList.remove('hidden');
+    }
+}
+function setDictationText() {
+    dictationTextFull = document.getElementById('dictationTextSource').value.trim();
+    document.getElementById('dictationText').textContent = dictationTextFull || '（无文本）';
+    document.getElementById('dictationText').classList.remove('blurred');
+    document.getElementById('dictationFeedback').textContent = '';
+}
+function toggleDictationText() {
+    document.getElementById('dictationText').classList.toggle('blurred');
+}
+function blurDictationText() {
+    document.getElementById('dictationText').classList.add('blurred');
+}
+function checkDictation() {
+    const user = document.getElementById('dictationInput').value;
+    const correct = dictationTextFull;
+    const result = judgeAnswer(correct, user);
+    const feedbackEl = document.getElementById('dictationFeedback');
+    if (result.status === 'perfect' || result.status === 'perfect-typo') {
+        feedbackEl.textContent = result.typos.length > 0
+            ? `✅ 听写正确！（拼写小误已算对：${result.typos.map(t => `${t.userWord} → ${t.word}`).join('，')}）`
+            : '✅ 听写完全正确！';
+        feedbackEl.className = 'feedback correct';
+        markDictation();
+    } else if (result.status === 'good') {
+        const extraMsg = result.extraUserWords.length > 0 
+            ? `（多写了：${result.extraUserWords.join(', ')}）` 
+            : `（还差：${result.unmatchedCorrect.map(m => m.word).join(', ')}）`;
+        feedbackEl.textContent = `⚠️ 基本正确 ${extraMsg}`;
+        feedbackEl.className = 'feedback correct';
+        markDictation();
+    } else if (result.status === 'partial') {
+        const matchedWords = result.matchedCorrect.map(m => m.word).join(', ');
+        const missedWords = result.unmatchedCorrect.map(m => m.word).join(', ');
+        feedbackEl.textContent = `💡 已听出：${matchedWords || '无'}。还差：${missedWords}`;
+        feedbackEl.className = 'feedback';
+    } else {
+        feedbackEl.textContent = '❌ 听写不完整，再听一遍或对照原文';
+        feedbackEl.className = 'feedback incorrect';
+    }
+}
+
+// ==================== 打卡系统 ====================
+function formatDate(d) {
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+function getTodayStr() {
+    return formatDate(new Date());
+}
+function getTodayData() {
+    const today = getTodayStr();
+    if (!checkins[today]) {
+        checkins[today] = { learned: false, reviewed: false, dictation: false };
+    }
+    return checkins[today];
+}
+function markLearned() {
+    const d = getTodayData();
+    d.learned = true;
+    saveData('checkins', checkins);
+    renderStats();
+}
+function markReviewed() {
+    const d = getTodayData();
+    d.reviewed = true;
+    saveData('checkins', checkins);
+    renderStats();
+}
+function markDictation() {
+    const d = getTodayData();
+    d.dictation = true;
+    saveData('checkins', checkins);
+    renderStats();
+}
+function renderStats() {
+    // ---- 连续打卡 ----
+    const days = Object.keys(checkins);
+    const totalDays = days.length;
+    let streak = 0;
+    const current = new Date();
+    // 从今天往前逐日回溯，直到断签。上限 365 天，避免任何意外的无限循环
+    for (let i = 0; i < 365; i++) {
+        const dateStr = formatDate(current);   // 必须用 current，不能用 getTodayStr()
+        const data = checkins[dateStr];
+        if (data && (data.learned || data.reviewed || data.dictation)) {
+            streak++;
+            current.setDate(current.getDate() - 1);
+        } else {
+            break;
+        }
+    }
+    document.getElementById('streak').textContent = streak;
+    document.getElementById('totalDays').textContent = totalDays;
+
+    // ---- 今日卡片：合并"来过"与"电量计划"两个视角 ----
+    const today = getTodayStr();
+    const td = checkins[today];
+    const body = document.getElementById('todayCardBody');
+    if (sessionPlan && sessionPlan.date === today) {
+        const done = Math.min(sessionCompleted, sessionPlan.total);
+        const finished = done >= sessionPlan.total;
+        body.innerHTML = `
+            打卡：${(td && (td.learned || td.reviewed)) ? '✅ 今天已来过' : '— 还没打卡'}　·
+            电量 ${sessionPlan.energy}%　·
+            计划 ${done}/${sessionPlan.total} 句
+            ${finished ? '　🎉 <b>计划已完成！</b>' : ''}
+            ${sessionPlan.deferred > 0 ? `<br><span style="color:#888; font-size:0.85em;">另有 ${sessionPlan.deferred} 句到期复习顺延中（没消失，改天见）</span>` : ''}
+        `;
+    } else {
+        body.innerHTML = (td && (td.learned || td.reviewed))
+            ? '✅ 今天已来过。没看到计划？去学习页点「📋 重新规划今天」。'
+            : '— 今天还没开始。去学习页答三道题，自动帮你排今天的量。';
+    }
+
+    // ---- 记忆库概览 ----
+    const mem = { due: 0, learning: 0, mastered: 0, leech: 0 };
+    allSentences().forEach(s => {
+        const card = cards[cardId(s)];
+        if (!card || card.reps === 0) return;
+        if (daysBetween(card.due, today) >= 0) { mem.due++; return; }   // 已到期优先归类
+        const lv = cardLevel(card);
+        if (lv === 'leech') mem.leech++;
+        else if (lv === 'mastered') mem.mastered++;
+        else mem.learning++;
+    });
+    document.getElementById('memDue').textContent = mem.due;
+    document.getElementById('memLearning').textContent = mem.learning;
+    document.getElementById('memMastered').textContent = mem.mastered;
+    document.getElementById('memLeech').textContent = mem.leech;
+
+    // ---- 未来 7 天到期预测 ----
+    const fc = [0, 0, 0, 0, 0, 0, 0];
+    Object.values(cards).forEach(c => {
+        const off = daysBetween(today, c.due);
+        if (off >= 0 && off < 7) fc[off]++;
+    });
+    const max = Math.max(1, ...fc);
+    const labels = ['今', '+1', '+2', '+3', '+4', '+5', '+6'];
+    document.getElementById('forecast').innerHTML = fc.map((n, i) => `
+        <div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:4px;">
+            <span style="font-size:0.8em; color:#666;">${n || ''}</span>
+            <div style="width:70%; max-width:34px; background:${n > 0 ? (i === 0 ? 'var(--red)' : 'var(--blue)') : '#e5e7eb'}; border-radius:4px 4px 0 0; height:${Math.round((n / max) * 56) + 2}px; min-height:2px;"></div>
+            <span style="font-size:0.72em; color:#888;">${labels[i]}</span>
+        </div>
+    `).join('');
+
+    // ---- 顽固题清单 ----
+    const leeches = allSentences().filter(s => {
+        const c = cards[cardId(s)];
+        return c && cardLevel(c) === 'leech';
+    });
+    const ll = document.getElementById('leechList');
+    if (leeches.length === 0) {
+        ll.innerHTML = '<p style="color:#aaa; text-align:center; padding:10px 0;">暂无——很好！</p>';
+    } else {
+        ll.innerHTML = leeches.map(s => {
+            const c = cards[cardId(s)];
+            const lv = cardLevel(c);
+            return `<div class="review-item" style="padding:10px 14px;">
+                <span style="color:var(--accent);">${s.spanish}</span>
+                <span style="color:#888; font-size:0.8em;">（${s.english} · ${s.chinese}）</span><br>
+                <span style="font-size:0.8em; color:#888;">失误 ${c.lapses} 次 · 上限 ${maxInterval(c.lapses)} 天 · 下次 ${c.due}</span>
+            </div>`;
+        }).join('') +
+        `<div style="margin-top:8px; text-align:center;">
+            <button class="btn-secondary" onclick="copyLeeches()" style="font-size:0.85em; padding:10px 14px;">📋 复制顽固题清单（粘给 Claude 讲解）</button>
+        </div>`;
+    }
+
+    // ---- 最近 7 天打卡表 ----
+    const table = document.getElementById('checkinTable');
+    let html = '<tr><th>日期</th><th>学习新题</th><th>复习错题</th><th>精听</th></tr>';
+    for (let i = 6; i >= 0; i--) {
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        const dateStr = formatDate(d);
+        const data = checkins[dateStr] || {};
+        const displayDate = `${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}`;
+        html += `<tr>
+            <td>${displayDate}</td>
+            <td>${data.learned ? '✅' : '—'}</td>
+            <td>${data.reviewed ? '✅' : '—'}</td>
+            <td>${data.dictation ? '✅' : '—'}</td>
+        </tr>`;
+    }
+    table.innerHTML = html;
+}
+
+function copyLeeches() {
+    const today = getTodayStr();
+    const lines = allSentences()
+        .filter(s => {
+            const c = cards[cardId(s)];
+            return c && cardLevel(c) === 'leech';
+        })
+        .map(s => {
+            const c = cards[cardId(s)];
+            return `• ${s.spanish}　（英：${s.english}；中：${s.chinese}；失误 ${c.lapses} 次）`;
+        });
+    if (lines.length === 0) return;
+    const text = '我这些句子反复出错，帮我逐个讲：形态对比、用法、记忆方法、针对性练习——\n' + lines.join('\n');
+    navigator.clipboard.writeText(text).then(
+        () => alert('已复制！粘到和 Claude 的对话框里即可。'),
+        () => alert('复制失败，请手动复制下面的内容：\n\n' + text)
+    );
+}
+
+// ==================== 记忆数据导出 / 导入 ====================
+function exportMemory() {
+    const payload = {
+        app: 'spanish-srs',
+        exportedAt: getTodayStr(),
+        cards,
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `西语记忆曲线_${getTodayStr()}.json`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 3000);
+}
+function importMemory(input) {
+    const file = input.files && input.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+        try {
+            const data = JSON.parse(reader.result);
+            if (!data.cards || typeof data.cards !== 'object') throw new Error('bad format');
+            if (!confirm(`确定用导入的记忆数据覆盖当前记忆曲线吗？\n（含 ${Object.keys(data.cards).length} 张卡片）`)) return;
+            cards = data.cards;
+            saveMemory('cards', cards);
+            renderStats();
+            alert('✅ 记忆数据已导入');
+        } catch(e) {
+            alert('导入失败：文件格式不对');
+        }
+    };
+    reader.readAsText(file);
+    input.value = '';
+}
+
+function resetAll() {
+    if (confirm('确定要清空所有数据吗？\n包括记忆曲线、打卡记录、分数，全部不可恢复！')) {
+        localStorage.clear();
+        cards = {};
+        wrongList = [];
+        checkins = {};
+        score = 0;
+        todayLearnedCount = 0;
+        dailyLimit = 10;
+        limitAcknowledged = false;
+        sessionPlan = null;
+        sessionQueue = [];
+        sessionIndex = 0;
+        sessionCompleted = 0;
+        planPersist = null;
+        saveDailyProgress();
+        location.reload();   // 清得彻底一点，让页面从头初始化
+    }
+}
+
+// ==================== 启动 ====================
+init();
+</script>
+<script>
+// 注册离线缓存（Service Worker）。只在 https 下生效：
+// 本地双击 file:// 打开时跳过，不报错；部署到 GitHub Pages 后自动启用离线功能。
+if ('serviceWorker' in navigator && location.protocol === 'https:') {
+    navigator.serviceWorker.register('sw.js').catch(function(){});
+}
+</script>
+</body>
+</html>
