@@ -2,7 +2,7 @@
 <html lang="zh">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#2b6cb0">
     <link rel="manifest" href="manifest.webmanifest">
     <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
@@ -25,6 +25,8 @@
             background: #e8f2fb;
             min-height: 100vh;
             padding: 20px;
+            /* iPhone 底部工具条会盖住页面最下面的按钮，留出安全区 */
+            padding-bottom: calc(20px + env(safe-area-inset-bottom));
         }
         .app {
             max-width: 800px;
@@ -566,29 +568,38 @@
     <div id="conj" class="tab-content">
         <h2 style="margin-bottom:5px;">🔀 动词变位专项</h2>
         <p style="color:#888; margin-bottom:15px; font-size:0.9em;">动词变位是西语的核心肌肉记忆：给定动词、人称和时态，写出正确的变位形式。</p>
-        <div class="card" id="conjCard" style="border-left-color:var(--accent);">
-            <div class="lang-label" style="color:var(--accent);">✍️ 请写出正确的变位</div>
-            <div style="font-size:1.2em; font-weight:bold; margin:8px 0;" id="conjPrompt">—</div>
-            <div style="font-size:0.85em; color:#888;" id="conjZh"></div>
+        <div id="conjStart" class="card" style="border-left-color:var(--accent); text-align:center; padding:28px 20px;">
+            <div style="font-size:2.4em;">🔀</div>
+            <div style="font-size:1.15em; font-weight:bold; margin:10px 0;"><span id="conjVerbCount">20</span> 个常用动词 × 4 个时态</div>
+            <p style="color:#888; font-size:0.9em; margin:0 0 16px;">现在时 40% · 简单过去时 30% · 虚拟式 15% · 命令式 15%<br>答错的题会在本轮结束时再问一遍</p>
+            <button class="btn-success" onclick="startConjRound()">▶️ 开始训练</button>
+            <div class="feedback" id="conjStartMsg" style="margin-top:12px;"></div>
         </div>
-        <div class="input-area">
-            <input type="text" id="conjInput" placeholder="输入变位形式..." onkeydown="if(event.key==='Enter') checkConjAnswer()">
-        </div>
-        <div class="buttons">
-            <button class="btn-success" onclick="checkConjAnswer()">✅ 检查</button>
-            <button class="btn-secondary" onclick="revealConjAnswer()">👁 显示答案</button>
-            <button class="btn-primary" onclick="newConjQuestion()">🎲 下一题</button>
-            <button class="btn-warning" onclick="endConjRound()">🏁 结束本轮</button>
-        </div>
-        <div class="feedback" id="conjFeedback"></div>
-        <div class="stats" style="margin-top:12px;">
-            <div class="stat-item"><div class="stat-value" id="conjCorrect">0</div><div class="stat-label">本轮正确</div></div>
-            <div class="stat-item"><div class="stat-value" id="conjWrong">0</div><div class="stat-label">本轮错误</div></div>
-            <div class="stat-item"><div class="stat-value" id="conjTotal">0</div><div class="stat-label">累计完成</div></div>
-        </div>
-        <div class="tip-box" style="margin-top:12px;">
-            <b>📌 说明：</b>时态出现频率——现在时 40% · 简单过去时 30% · 虚拟式 15% · 命令式 15%。
-            答错的题会在本轮结束时再问一遍。此训练不进 SRS 记忆卡，每次作答都计入打卡。
+        <div id="conjPlay" class="hidden">
+            <div class="card" id="conjCard" style="border-left-color:var(--accent);">
+                <div class="lang-label" style="color:var(--accent);">✍️ 请写出正确的变位</div>
+                <div style="font-size:1.2em; font-weight:bold; margin:8px 0;" id="conjPrompt">—</div>
+                <div style="font-size:0.85em; color:#888;" id="conjZh"></div>
+            </div>
+            <div class="input-area">
+                <input type="text" id="conjInput" placeholder="输入变位形式..." onkeydown="if(event.key==='Enter') checkConjAnswer()">
+            </div>
+            <div class="buttons">
+                <button class="btn-success" onclick="checkConjAnswer()">✅ 检查</button>
+                <button class="btn-secondary" onclick="revealConjAnswer()">👁 显示答案</button>
+                <button class="btn-primary" onclick="newConjQuestion()">🎲 下一题</button>
+                <button class="btn-warning" onclick="endConjRound()">🏁 结束本轮</button>
+            </div>
+            <div class="feedback" id="conjFeedback"></div>
+            <div class="stats" style="margin-top:12px;">
+                <div class="stat-item"><div class="stat-value" id="conjCorrect">0</div><div class="stat-label">本轮正确</div></div>
+                <div class="stat-item"><div class="stat-value" id="conjWrong">0</div><div class="stat-label">本轮错误</div></div>
+                <div class="stat-item"><div class="stat-value" id="conjTotal">0</div><div class="stat-label">累计完成</div></div>
+            </div>
+            <div class="tip-box" style="margin-top:12px;">
+                <b>📌 说明：</b>严格判分——变位的意义全在词尾，打错一个字母就算错（重音符号、ñ 不要求）。
+                此训练不进 SRS 记忆卡，每次作答都计入打卡。
+            </div>
         </div>
     </div>
 
@@ -610,6 +621,13 @@
             <button class="btn-primary" onclick="dictRandom()">🎲 随机全库句</button>
             <button class="btn-secondary" onclick="dictNext()">➡️ 下一句</button>
             <button class="btn-secondary" onclick="toggleTtsRate()" id="dictRateBtn">🔊 语速：正常</button>
+        </div>
+        <div class="tb-meta" style="margin-top:8px;" id="ttsVoiceName"></div>
+        <div class="tip-box hidden" style="margin-top:12px;" id="ttsVoiceHint">
+            <b>⚠️ 设备上没找到西语语音</b>，所以朗读走了系统默认声音（听起来像中文）。安装方法：<br>
+            · iPhone：设置 → 辅助功能 → 朗读内容 → 声音 → 西班牙语 → 选 Mónica 或 Paulina<br>
+            · Mac：系统设置 → 辅助功能 → 朗读内容 → 系统声音 → 管理声音 → 下载西语声音<br>
+            装好后刷新页面即可。
         </div>
         <div class="card chinese" style="margin-top:10px;">
             <div class="lang-label">🇨🇳 中文提示</div>
@@ -1136,7 +1154,7 @@ function init() {
     checkins = loadData('checkins', {});
     score = toInt(loadData('score', 0), 0);
     dailyLimit = toInt(loadData('dailyLimit', 10), 10);
-    TTS.rate = loadData('ttsRate', 'normal') === 'slow' ? 0.75 : 1.0;
+    TTS.rate = loadData('ttsRate', 'normal') === 'slow' ? 0.6 : 1.0;
     cards = loadMemory('cards', {});
 
     // 每日计数必须跟日期绑定，否则累计到上限后会被永久锁死
@@ -1209,9 +1227,14 @@ function init() {
     }
 
     renderStats();
+    renderTextbook();      // 教材页是默认首页，进站就要渲染（原来只在切换页签时渲染）
 
     updateTtsRateButtons();
+    updateTtsVoiceLabel();
+    setTimeout(updateTtsVoiceLabel, 800);   // iOS 的语音列表是异步加载的，稍后再补一次
     updateTypePrefsBtn();
+    const cvc = document.getElementById('conjVerbCount');
+    if (cvc) cvc.textContent = VERBS.length;
     document.getElementById('versionTag').textContent =
         `v${APP_VERSION}` + (freshInstall ? '　·　已为新版本重置进度（记忆曲线保留）' : '');
 }
@@ -1400,7 +1423,7 @@ function loadCurrentSentence() {
         sentence: currentSentence,
         type,
         options: type === 'choice' ? buildChoiceOptions(currentSentence) : null,
-        tiles: type === 'tiles' ? buildTiles(currentSentence) : null,
+        tiles: type === 'tiles' ? buildTiles(currentSentence).tiles : null,   // 存词块数组（buildTiles 返回 {tokens, tiles}，直接存对象会让 renderTiles 的 .map 崩掉）
         tray: [],
     };
 
@@ -1455,7 +1478,7 @@ function renderQuestion() {
         ta.innerHTML = `
             <div class="dict-play">
                 <button class="btn-warning" onclick="speakDictQuestion()">🔊 播放</button>
-                <button class="btn-secondary" onclick="toggleTtsRate()" id="ttsRateBtn2">🐢 慢速</button>
+                <button class="btn-secondary" onclick="toggleTtsRate()" id="ttsRateBtn2">${TTS.rate === 0.6 ? '🐢 语速：慢速' : '🔊 语速：正常'}</button>
             </div>`;
     } else {
         ia.classList.remove('hidden');
@@ -1882,6 +1905,18 @@ let conjQuestion = null;       // { verb, tense, person, answer }
 let conjRetry = [];            // 本轮答错的题，结束时重问
 let conjRoundCorrect = 0, conjRoundWrong = 0;
 
+// 轮次制：点「开始训练」清空本轮计数、进入训练区、出第一题
+function startConjRound() {
+    conjRetry = [];
+    conjRoundCorrect = 0;
+    conjRoundWrong = 0;
+    document.getElementById('conjCorrect').textContent = '0';
+    document.getElementById('conjWrong').textContent = '0';
+    document.getElementById('conjStart').classList.add('hidden');
+    document.getElementById('conjPlay').classList.remove('hidden');
+    newConjQuestion();
+}
+
 function newConjQuestion() {
     if (VERBS.length === 0) {
         document.getElementById('conjPrompt').textContent = '变位表未加载';
@@ -1965,8 +2000,13 @@ function endConjRound() {
             document.getElementById('conjInput').value = '';
         }
     } else {
-        feedbackEl.textContent = '🏁 本轮全部答对，非常棒！点「🎲 下一题」再来一轮。';
-        feedbackEl.className = 'feedback correct';
+        // 本轮结束：回到开始界面，把成绩亮在那里
+        const msgEl = document.getElementById('conjStartMsg');
+        msgEl.textContent = `🏁 本轮结束：对 ${conjRoundCorrect} 题、错 ${conjRoundWrong} 题。点「▶️ 开始训练」再来一轮。`;
+        msgEl.className = 'feedback correct';
+        conjQuestion = null;
+        document.getElementById('conjPlay').classList.add('hidden');
+        document.getElementById('conjStart').classList.remove('hidden');
     }
 }
 
@@ -2068,16 +2108,32 @@ function showTextbookLesson(id) {
     window.scrollTo(0, 0);
 }
 
-// 对话朗读：onEnd 链式逐句读，规避 iOS 长文本中断
+// 对话朗读：onEnd 链式逐句读，规避 iOS 长文本中断。
+// 之前只读第一句的原因：续句的 speak() 开头先 cancel()，把链给掐断了。
+// 现在：第一句负责打断旧朗读，续句 noCancel 只排队；token 变了（用户点了别的朗读）就整段停止。
 function speakDialogue(lines, i) {
     i = i || 0;
-    if (i >= lines.length) return;
-    speak(lines[i].es, {}, () => speakDialogue(lines, i + 1));
+    if (!lines || i >= lines.length) return;
+    const token = TTS.token;
+    speak(lines[i].es, {
+        noCancel: i > 0,
+        onEnd: () => {
+            if (i > 0 && TTS.token !== token) return;   // 被用户打断 → 不抢用户的耳朵
+            // WebKit 在 onend 回调里立刻 speak 有时不发声，垫个短延迟
+            setTimeout(() => speakDialogue(lines, i + 1), 120);
+        }
+    });
 }
 
 function startTextbookPractice(id) {
-    loadLesson(id);          // 复用现有课时流程：建队列、出第一题、记录 currentLessonId
-    switchTab('learn');
+    try {
+        loadLesson(id);          // 复用现有课时流程：建队列、出第一题、记录 currentLessonId
+        switchTab('learn');
+    } catch(e) {
+        // 静默失败会让人以为按钮坏了——把错误亮出来，方便排查
+        console.error('startTextbookPractice', e);
+        alert('开始练习失败：' + (e && e.message ? e.message : e) + '　（请把这句话截图发给 Claude）');
+    }
 }
 
 // ==================== 错题模式 ====================
@@ -2149,6 +2205,7 @@ function checkReviewAnswer(idx) {
 const TTS = {
     voices: [],
     rate: 1.0,
+    token: 0,      // 每次打断（cancel）时 +1；链式朗读靠它识别「被用户打断」并及时停止
     available() {
         return typeof window !== 'undefined' && typeof window.speechSynthesis !== 'undefined'
             && typeof window.SpeechSynthesisUtterance === 'function';
@@ -2161,12 +2218,22 @@ const TTS = {
         TTS.refreshVoices();
         const es = TTS.voices.filter(v => (v.lang || '').toLowerCase().startsWith('es'));
         if (es.length === 0) return null;
-        return es.find(v => v.lang === 'es-ES') || es[0];
+        // 优先本地语音：网络语音（localService=false）在 iOS 上会忽略语速设置
+        const local = es.filter(v => v.localService !== false);
+        const pool = local.length > 0 ? local : es;
+        // 优先 es-ES 里音质公认较好的声音（macOS/iOS：Mónica/Paulina/Jorge；Chrome：Google español）
+        // 用 normalize 比较：重音符号不同的拼写（Mónica/Monica）都能匹配
+        const pref = ['monica', 'paulina', 'jorge', 'google espanol'];
+        for (const p of pref) {
+            const hit = pool.find(v => (v.lang || '').toLowerCase() === 'es-es' && normalize(v.name || '').includes(p));
+            if (hit) return hit;
+        }
+        return pool.find(v => (v.lang || '').toLowerCase() === 'es-es') || pool[0];
     }
 };
 TTS.refreshVoices();
 if (TTS.available()) {
-    try { window.speechSynthesis.onvoiceschanged = () => TTS.refreshVoices(); } catch(e) {}
+    try { window.speechSynthesis.onvoiceschanged = () => { TTS.refreshVoices(); updateTtsVoiceLabel(); }; } catch(e) {}
 }
 
 function speak(text, opts) {
@@ -2174,7 +2241,8 @@ function speak(text, opts) {
     if (!text || !TTS.available()) { if (o.onEnd) o.onEnd(); return false; }
     try {
         const synth = window.speechSynthesis;
-        synth.cancel();                      // 清掉旧朗读，防连点堆积
+        // 清掉旧朗读防连点堆积；链式朗读的续句传 noCancel，避免把自己打断
+        if (!o.noCancel) { synth.cancel(); TTS.token++; }
         const u = new window.SpeechSynthesisUtterance(text);
         u.lang = 'es-ES';
         const v = TTS.pickVoice();
@@ -2201,16 +2269,38 @@ function updateTypePrefsBtn() {
 }
 
 function toggleTtsRate() {
-    TTS.rate = TTS.rate === 0.75 ? 1.0 : 0.75;
-    saveData('ttsRate', TTS.rate === 0.75 ? 'slow' : 'normal');
+    TTS.rate = TTS.rate === 0.6 ? 1.0 : 0.6;
+    saveData('ttsRate', TTS.rate === 0.6 ? 'slow' : 'normal');
     updateTtsRateButtons();
 }
 function updateTtsRateButtons() {
-    const label = TTS.rate === 0.75 ? '🐢 语速：慢速' : '🔊 语速：正常';
+    const label = TTS.rate === 0.6 ? '🐢 语速：慢速' : '🔊 语速：正常';
     const btn = document.getElementById('dictRateBtn');
     if (btn) btn.textContent = label;
     const btn2 = document.getElementById('ttsRateBtn');
     if (btn2) btn2.textContent = label;
+    const btn3 = document.getElementById('ttsRateBtn2');   // 听写题型卡里的语速按钮
+    if (btn3) btn3.textContent = label;
+}
+
+// 显示当前用哪个西语语音；找不到就亮出「朗读会变中文」的安装提示
+function updateTtsVoiceLabel() {
+    const el = document.getElementById('ttsVoiceName');
+    const hint = document.getElementById('ttsVoiceHint');
+    if (!el) return;
+    if (!TTS.available()) {
+        el.textContent = '⚠️ 此浏览器不支持语音朗读';
+        if (hint) hint.classList.remove('hidden');
+        return;
+    }
+    const v = TTS.pickVoice();
+    if (v) {
+        el.textContent = `🗣 西语语音：${v.name}`;
+        if (hint) hint.classList.add('hidden');
+    } else {
+        el.textContent = '⚠️ 未找到西语语音，朗读会走系统默认（听起来像中文）';
+        if (hint) hint.classList.remove('hidden');
+    }
 }
 
 // ==================== 精听模式（TTS 驱动） ====================
