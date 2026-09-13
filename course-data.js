@@ -1,4 +1,4 @@
-// 西语每日练 · 课程数据（功能内容版 v1.2.0）
+// 西语每日练 · 课程数据（功能内容版 v1.3.0）
 // 内容迭代只改本文件。铁律：已上线句子的 spanish 原文永不修改（记忆卡 ID 由它生成）；
 // 改中英翻译安全。新句子必须原创，带 tier（1-10）和 point（具体语法点）。
 // 注意：必须用普通 script 全局变量（不能改成 ES module——本地双击 file:// 会被拦截）。
@@ -443,7 +443,13 @@ var COURSE_DATA = [
                 { es: "de", pos: "介词", zh: "的；来自（表所属、来源）" },
                 { es: "mucho gusto", pos: "短语", zh: "很高兴认识你" },
                 { es: "encantado, encantada", pos: "形容词", zh: "很高兴（初次见面用语）" }
-            ]
+            ],
+            dialogue: [
+            { speaker: "María", es: "Hola, yo soy María. ¿Cómo te llamas tú?", zh: "你好，我是玛丽亚。你叫什么名字？" },
+            { speaker: "Li", es: "Me llamo Li Ming, encantado de conocerte.", zh: "我叫李明，很高兴认识你。" },
+            { speaker: "María", es: "Yo soy de México. ¿Y tú, de dónde eres?", zh: "我来自墨西哥。你呢，你是哪里人？" },
+            { speaker: "Li", es: "Soy de China. Eres mi nueva profesora, ¿verdad?", zh: "我来自中国。你是我的新老师，对吗？" }
+            ],
         },
         sentences: [
             { english: "Good morning, I am Li Ming.", chinese: "早上好，我是李明。", spanish: "Buenos días, yo soy Li Ming.", tier: 1, point: "问候 + yo soy 自我介绍" },
@@ -521,7 +527,13 @@ var COURSE_DATA = [
                 { es: "el / la / los / las", pos: "定冠词", zh: "这个/这些（特指）" },
                 { es: "cuántos, cuántas", pos: "疑问词", zh: "多少" },
                 { es: "muy", pos: "副词", zh: "很，非常" }
-            ]
+            ],
+            dialogue: [
+            { speaker: "Ana", es: "¿A qué hora empieza la clase mañana?", zh: "明天几点开始上课？" },
+            { speaker: "Li", es: "La clase empieza a las ocho. ¿Tienes tiempo esta tarde?", zh: "八点开始。你今天下午有时间吗？" },
+            { speaker: "Ana", es: "Sí, tengo tiempo. Estoy en casa toda la tarde.", zh: "有，我整个下午都在家。" },
+            { speaker: "Li", es: "Muy bien. Estudiamos español juntos, ¿vale?", zh: "太好了。我们一起学西语吧，好吗？" }
+            ],
         },
         sentences: [
             { english: "I study Spanish at the university.", chinese: "我在大学学西语。", spanish: "Estudio español en la universidad.", tier: 3, point: "-ar 动词第一人称：estudio" },
@@ -599,7 +611,13 @@ var COURSE_DATA = [
                 { es: "simpático, simpática", pos: "形容词", zh: "热情的，讨人喜欢的" },
                 { es: "hijo, hija", pos: "名词", zh: "儿子 / 女儿" },
                 { es: "vivir", pos: "动词", zh: "居住；生活" }
-            ]
+            ],
+            dialogue: [
+            { speaker: "María", es: "¿Quién es esta señora? Es muy guapa.", zh: "这位女士是谁？她真好看。" },
+            { speaker: "Li", es: "Es mi madre. Ella trabaja en una escuela.", zh: "是我妈妈。她在一所学校工作。" },
+            { speaker: "María", es: "¿Y este chico? ¿Es tu hermano?", zh: "那这个男孩呢？是你哥哥吗？" },
+            { speaker: "Li", es: "Sí, él estudia en la universidad. Nuestra casa está cerca.", zh: "是的，他在大学读书。我们家就在附近。" }
+            ],
         },
         sentences: [
             { english: "My grandparents' house is in the countryside.", chinese: "我爷爷奶奶的房子在乡下。", spanish: "La casa de mis abuelos está en el campo.", tier: 2, point: "de 表所属 + estar 表位置" },
@@ -677,7 +695,13 @@ var COURSE_DATA = [
                 { es: "deberes", pos: "名词(复)", zh: "作业" },
                 { es: "compañero, compañera", pos: "名词", zh: "同伴；同学" },
                 { es: "necesitar", pos: "动词", zh: "需要" }
-            ]
+            ],
+            dialogue: [
+            { speaker: "Li", es: "Buenos días, Ana. ¿A qué hora te levantas?", zh: "早上好，安娜。你几点起床？" },
+            { speaker: "Ana", es: "Me levanto a las seis y media. ¿Y tú?", zh: "我六点半起床。你呢？" },
+            { speaker: "Li", es: "Yo me levanto a las siete. ¿Qué haces esta tarde?", zh: "我七点起。你今天下午做什么？" },
+            { speaker: "Ana", es: "Esta tarde hago los deberes y salgo con mi prima.", zh: "下午我写作业，然后和我表妹出去。" }
+            ],
         },
         sentences: [
             { english: "I need a new dictionary.", chinese: "我需要一本新词典。", spanish: "Necesito un diccionario nuevo.", tier: 3, point: "不定冠词 un + 阳性名词" },
@@ -755,7 +779,13 @@ var COURSE_DATA = [
                 { es: "once…veinte", pos: "数词", zh: "十一…二十" },
                 { es: "felicitar", pos: "动词", zh: "祝贺" },
                 { es: "descansar", pos: "动词", zh: "休息" }
-            ]
+            ],
+            dialogue: [
+            { speaker: "María", es: "Este sábado hay una fiesta en mi casa. ¿Vienes?", zh: "这周六我家有个聚会。你来吗？" },
+            { speaker: "Li", es: "¡Qué bien! Voy a ir con mucho gusto.", zh: "太好了！我很乐意去。" },
+            { speaker: "María", es: "Voy a comprar una tarta y unos regalos.", zh: "我打算买个蛋糕和一些礼物。" },
+            { speaker: "Li", es: "Tengo que trabajar por la mañana, pero voy por la tarde.", zh: "我上午得工作，但我下午过去。" }
+            ],
         },
         sentences: [
             { english: "I invite you to my birthday party.", chinese: "我邀请你来我的生日聚会。", spanish: "Te invito a mi fiesta de cumpleaños.", tier: 3, point: "宾格代词 te 前置 + invitar a" },
@@ -833,7 +863,13 @@ var COURSE_DATA = [
                 { es: "música", pos: "名词(阴)", zh: "音乐" },
                 { es: "película", pos: "名词(阴)", zh: "电影" },
                 { es: "por qué", pos: "疑问词", zh: "为什么" }
-            ]
+            ],
+            dialogue: [
+            { speaker: "Li", es: "¿Te gusta la música española?", zh: "你喜欢西班牙音乐吗？" },
+            { speaker: "Ana", es: "Me gusta mucho. Escucho música todas las noches.", zh: "非常喜欢。我每天晚上都听音乐。" },
+            { speaker: "Li", es: "Yo quiero aprender a bailar. ¿Puedes enseñarme?", zh: "我想学跳舞。你能教我吗？" },
+            { speaker: "Ana", es: "Claro que sí. Te recomiendo una escuela muy buena.", zh: "当然可以。我推荐你一所很好的学校。" }
+            ],
         },
         sentences: [
             { english: "We eat at the university at noon.", chinese: "我们中午在大学吃饭。", spanish: "Comemos en la universidad al mediodía.", tier: 3, point: "-er 动词第一人称复数：comemos" },
@@ -911,7 +947,13 @@ var COURSE_DATA = [
                 { es: "historia", pos: "名词(阴)", zh: "故事；历史" },
                 { es: "carta", pos: "名词(阴)", zh: "信" },
                 { es: "regalo", pos: "名词(阳)", zh: "礼物" }
-            ]
+            ],
+            dialogue: [
+            { speaker: "Li", es: "Gracias por tu visita. ¿Quieres beber algo?", zh: "谢谢你来拜访。你想喝点什么？" },
+            { speaker: "María", es: "Un vaso de agua, por favor. ¿Viven aquí tus abuelos?", zh: "请来一杯水。你爷爷奶奶住在这里吗？" },
+            { speaker: "Li", es: "Sí, ellos viven con nosotros. Les gusta mucho el campo.", zh: "是的，他们和我们住在一起。他们很喜欢乡下。" },
+            { speaker: "María", es: "Escribo una carta a mis abuelos cada semana.", zh: "我每周给爷爷奶奶写一封信。" }
+            ],
         },
         sentences: [
             { english: "My grandparents live in the countryside.", chinese: "我爷爷奶奶住在乡下。", spanish: "Mis abuelos viven en el campo.", tier: 3, point: "-ir 动词第三人称复数：viven" },
@@ -989,7 +1031,13 @@ var COURSE_DATA = [
                 { es: "doscientos…mil", pos: "数词", zh: "两百…一千" },
                 { es: "favorito, favorita", pos: "形容词", zh: "最喜欢的" },
                 { es: "suerte", pos: "名词(阴)", zh: "运气" }
-            ]
+            ],
+            dialogue: [
+            { speaker: "Ana", es: "¡Qué bonita es esta iglesia!", zh: "这座教堂真漂亮！" },
+            { speaker: "Li", es: "Sí, y es más antigua que aquella plaza.", zh: "是的，而且它比那个广场更古老。" },
+            { speaker: "Ana", es: "¿Cuál es tu lugar favorito de la ciudad?", zh: "你在这座城市最喜欢的地方是哪里？" },
+            { speaker: "Li", es: "Mi lugar favorito es este parque. ¿No eres de aquí?", zh: "我最喜欢这个公园。你不是本地人吗？" }
+            ],
         },
         sentences: [
             { english: "This book is mine, not yours.", chinese: "这本书是我的，不是你的。", spanish: "Este libro es mío, no es tuyo.", tier: 2, point: "重读物主代词 mío/tuyo 作表语" },
@@ -1067,7 +1115,13 @@ var COURSE_DATA = [
                 { es: "enfrente", pos: "副词", zh: "对面" },
                 { es: "otra vez", pos: "短语", zh: "再一次" },
                 { es: "silencio", pos: "名词(阳)", zh: "安静" }
-            ]
+            ],
+            dialogue: [
+            { speaker: "Li", es: "¿Puede usted cerrar la puerta, por favor?", zh: "您能把门关上吗？" },
+            { speaker: "María", es: "Sí, claro. Pase usted y espere un momento.", zh: "当然。您请进，稍等一会儿。" },
+            { speaker: "Li", es: "Hable más despacio, por favor. No le entiendo bien.", zh: "请您说慢一点，我听不太懂。" },
+            { speaker: "María", es: "Claro. Siéntese aquí, por favor.", zh: "当然。请坐在这里。" }
+            ],
         },
         sentences: [
             { english: "I will explain it to you again.", chinese: "我再给你解释一遍。", spanish: "Te lo explico otra vez.", tier: 3, point: "与格 te + 宾格 lo 连用，动词前" },
@@ -1145,7 +1199,13 @@ var COURSE_DATA = [
                 { es: "claro", pos: "形容词/副词", zh: "清楚的；当然" },
                 { es: "tranquilo, tranquila", pos: "形容词", zh: "平静的，放心的" },
                 { es: "ayudar", pos: "动词", zh: "帮助" }
-            ]
+            ],
+            dialogue: [
+            { speaker: "Ana", es: "¿Qué planes tienes para el domingo?", zh: "你周日有什么计划？" },
+            { speaker: "Li", es: "Si hace buen tiempo, voy a la playa.", zh: "如果天气好，我去海滩。" },
+            { speaker: "Ana", es: "Y si llueve, ¿qué haces?", zh: "那如果下雨呢，你做什么？" },
+            { speaker: "Li", es: "Si llueve, me quedo en casa y leo un libro.", zh: "如果下雨，我待在家看书。" }
+            ],
         },
         sentences: [
             { english: "If you have time, come to see me.", chinese: "如果你有时间，来看我。", spanish: "Si tienes tiempo, ven a verme.", tier: 11, point: "si 条件从句 + 命令式 ven" },
@@ -1223,7 +1283,13 @@ var COURSE_DATA = [
                 { es: "todavía", pos: "副词", zh: "还，仍然" },
                 { es: "ya", pos: "副词", zh: "已经" },
                 { es: "preparar", pos: "动词", zh: "准备" }
-            ]
+            ],
+            dialogue: [
+            { speaker: "María", es: "¿Qué estás haciendo en este momento?", zh: "你此刻在做什么？" },
+            { speaker: "Li", es: "Estoy estudiando español. No hables tan alto, por favor.", zh: "我在学西语。请别那么大声说话。" },
+            { speaker: "María", es: "Perdón. ¿Qué dice tu profesora de tus deberes?", zh: "抱歉。你的老师对你的作业怎么说？" },
+            { speaker: "Li", es: "Dice que están muy bien, pero que debo escribir más despacio.", zh: "她说写得很好，但我应该写慢一点。" }
+            ],
         },
         sentences: [
             { english: "Don't speak so fast, please.", chinese: "请别说得那么快。", spanish: "No hables tan rápido, por favor.", tier: 11, point: "否定命令式 tú：no hables" },
@@ -1301,7 +1367,13 @@ var COURSE_DATA = [
                 { es: "ayuda", pos: "名词(阴)", zh: "帮助" },
                 { es: "hora", pos: "名词(阴)", zh: "小时；时间" },
                 { es: "quisiera", pos: "动词(条件式)", zh: "我想要（客气）" }
-            ]
+            ],
+            dialogue: [
+            { speaker: "Li", es: "Perdón, ¿qué hora es ahora?", zh: "打扰一下，现在几点了？" },
+            { speaker: "Ana", es: "Son las diez y media. ¿Quieres tomar un café conmigo?", zh: "十点半。你想和我喝杯咖啡吗？" },
+            { speaker: "Li", es: "Quisiera un vaso de agua, gracias. Sigo trabajando en casa.", zh: "请给我一杯水，谢谢。我还在家工作。" },
+            { speaker: "Ana", es: "Te agradezco mucho tu ayuda de ayer.", zh: "我非常感谢你昨天的帮助。" }
+            ],
         },
         sentences: [
             { english: "He continues working at the same company.", chinese: "他还在同一家公司工作。", spanish: "Él sigue trabajando en la misma empresa.", tier: 14, point: "seguir + 副动词（继续做某事）" },
@@ -1379,7 +1451,13 @@ var COURSE_DATA = [
                 { es: "caro, cara", pos: "形容词", zh: "贵的" },
                 { es: "barato, barata", pos: "形容词", zh: "便宜的" },
                 { es: "preguntar", pos: "动词", zh: "询问" }
-            ]
+            ],
+            dialogue: [
+            { speaker: "Li", es: "¿Qué dice María del nuevo restaurante?", zh: "玛丽亚对新餐厅怎么说？" },
+            { speaker: "Ana", es: "Dice que la comida es buena, pero un poco cara.", zh: "她说菜不错，但有点贵。" },
+            { speaker: "Li", es: "Creo que el restaurante de la esquina es mejor.", zh: "我觉得街角那家更好。" },
+            { speaker: "Ana", es: "Sí, es más barato y más tranquilo.", zh: "是的，它更便宜也更安静。" }
+            ],
         },
         sentences: [
             { english: "I hope you talk with the teacher.", chinese: "我希望你和老师谈谈。", spanish: "Espero que hables con el profesor.", tier: 12, point: "espero que + 虚拟式 hables" },
@@ -1457,7 +1535,13 @@ var COURSE_DATA = [
                 { es: "vacaciones", pos: "名词(阴复)", zh: "假期" },
                 { es: "noticia", pos: "名词(阴)", zh: "消息，新闻" },
                 { es: "tener razón", pos: "短语", zh: "有道理，是对的" }
-            ]
+            ],
+            dialogue: [
+            { speaker: "Li", es: "Espero que vengas a mi fiesta de cumpleaños.", zh: "我希望你来我的生日聚会。" },
+            { speaker: "María", es: "Claro, quiero que me guardes un trozo de tarta.", zh: "当然，你要给我留一块蛋糕。" },
+            { speaker: "Li", es: "Ojalá haga buen tiempo ese día.", zh: "希望那天天气好。" },
+            { speaker: "María", es: "Es importante que descanses antes de la fiesta.", zh: "聚会前你好好休息很重要。" }
+            ],
         },
         sentences: [
             { english: "I want you to help me with the move.", chinese: "我要你帮我搬家。", spanish: "Quiero que me ayudes con la mudanza.", tier: 12, point: "quiero que + 虚拟式 ayudes" },
@@ -1535,7 +1619,13 @@ var COURSE_DATA = [
                 { es: "mes", pos: "名词(阳)", zh: "月份" },
                 { es: "una hora", pos: "短语", zh: "一个小时" },
                 { es: "alegre", pos: "形容词", zh: "开心的" }
-            ]
+            ],
+            dialogue: [
+            { speaker: "Li", es: "¿Cómo se dice plaza en español?", zh: "广场用西语怎么说？" },
+            { speaker: "María", es: "Se dice plaza. En esta ciudad se hablan dos idiomas.", zh: "说 plaza。这座城市说两种语言。" },
+            { speaker: "Li", es: "Aquí se venden verduras muy frescas.", zh: "这里卖很新鲜的蔬菜。" },
+            { speaker: "María", es: "Llevo tres meses viviendo aquí y me encanta.", zh: "我在这里住了三个月了，非常喜欢。" }
+            ],
         },
         sentences: [
             { english: "I am glad that you are well.", chinese: "我很高兴你一切都好。", spanish: "Me alegro de que estés bien.", tier: 12, point: "me alegro de que + 虚拟式 estés" },
@@ -1613,7 +1703,13 @@ var COURSE_DATA = [
                 { es: "cansado, cansada", pos: "形容词", zh: "累的" },
                 { es: "contento, contenta", pos: "形容词", zh: "高兴的" },
                 { es: "preocupado, preocupada", pos: "形容词", zh: "担心的" }
-            ]
+            ],
+            dialogue: [
+            { speaker: "Ana", es: "¿Por qué estás tan cansado hoy?", zh: "你今天为什么这么累？" },
+            { speaker: "Li", es: "Anoche trabajé hasta muy tarde. El trabajo ya está terminado, por suerte.", zh: "昨晚我工作到很晚。好在工作已经做完了。" },
+            { speaker: "Ana", es: "¿La puerta de tu oficina está abierta o cerrada?", zh: "你办公室的门是开着还是关着？" },
+            { speaker: "Li", es: "Está cerrada. Hace falta más tiempo para descansar.", zh: "关着。需要更多时间休息。" }
+            ],
         },
         sentences: [
             { english: "The door is open.", chinese: "门开着。", spanish: "La puerta está abierta.", tier: 13, point: "过去分词 abierto 作状态形容词（与阴性一致）" },
@@ -1634,4 +1730,29 @@ var COURSE_DATA = [
             { english: "I am not tired, I am just sleepy.", chinese: "我不累，只是困。", spanish: "No estoy cansado, solo tengo sueño.", tier: 7, point: "否定 + tener sueño 困" }
         ]
     }
+];
+
+// ==================== 动词变位表（变位专项训练用） ====================
+// 每词 4 时态：present / preterite / subjunctive（各 6 人称）+ imperativoTu（tú 肯定/否定）
+var VERBS_DATA = [
+    { inf: 'hablar', zh: '说话', forms: { present: { yo:'hablo', tu:'hablas', el:'habla', nosotros:'hablamos', vosotros:'habláis', ellos:'hablan' }, preterite: { yo:'hablé', tu:'hablaste', el:'habló', nosotros:'hablamos', vosotros:'hablasteis', ellos:'hablaron' }, subjunctive: { yo:'hable', tu:'hables', el:'hable', nosotros:'hablemos', vosotros:'habléis', ellos:'hablen' }, imperativoTu: { tu:'habla', tuNeg:'no hables' } } },
+    { inf: 'trabajar', zh: '工作', forms: { present: { yo:'trabajo', tu:'trabajas', el:'trabaja', nosotros:'trabajamos', vosotros:'trabajáis', ellos:'trabajan' }, preterite: { yo:'trabajé', tu:'trabajaste', el:'trabajó', nosotros:'trabajamos', vosotros:'trabajasteis', ellos:'trabajaron' }, subjunctive: { yo:'trabaje', tu:'trabajes', el:'trabaje', nosotros:'trabajemos', vosotros:'trabajéis', ellos:'trabajen' }, imperativoTu: { tu:'trabaja', tuNeg:'no trabajes' } } },
+    { inf: 'estudiar', zh: '学习', forms: { present: { yo:'estudio', tu:'estudias', el:'estudia', nosotros:'estudiamos', vosotros:'estudiáis', ellos:'estudian' }, preterite: { yo:'estudié', tu:'estudiaste', el:'estudió', nosotros:'estudiamos', vosotros:'estudiasteis', ellos:'estudiaron' }, subjunctive: { yo:'estudie', tu:'estudies', el:'estudie', nosotros:'estudiemos', vosotros:'estudiéis', ellos:'estudien' }, imperativoTu: { tu:'estudia', tuNeg:'no estudies' } } },
+    { inf: 'comprar', zh: '买', forms: { present: { yo:'compro', tu:'compras', el:'compra', nosotros:'compramos', vosotros:'compráis', ellos:'compran' }, preterite: { yo:'compré', tu:'compraste', el:'compró', nosotros:'compramos', vosotros:'comprasteis', ellos:'compraron' }, subjunctive: { yo:'compre', tu:'compres', el:'compre', nosotros:'compremos', vosotros:'compréis', ellos:'compren' }, imperativoTu: { tu:'compra', tuNeg:'no compres' } } },
+    { inf: 'comer', zh: '吃', forms: { present: { yo:'como', tu:'comes', el:'come', nosotros:'comemos', vosotros:'coméis', ellos:'comen' }, preterite: { yo:'comí', tu:'comiste', el:'comió', nosotros:'comimos', vosotros:'comisteis', ellos:'comieron' }, subjunctive: { yo:'coma', tu:'comas', el:'coma', nosotros:'comamos', vosotros:'comáis', ellos:'coman' }, imperativoTu: { tu:'come', tuNeg:'no comas' } } },
+    { inf: 'beber', zh: '喝', forms: { present: { yo:'bebo', tu:'bebes', el:'bebe', nosotros:'bebemos', vosotros:'bebéis', ellos:'beben' }, preterite: { yo:'bebí', tu:'bebiste', el:'bebió', nosotros:'bebimos', vosotros:'bebisteis', ellos:'bebieron' }, subjunctive: { yo:'beba', tu:'bebas', el:'beba', nosotros:'bebamos', vosotros:'bebáis', ellos:'beban' }, imperativoTu: { tu:'bebe', tuNeg:'no bebas' } } },
+    { inf: 'aprender', zh: '学会', forms: { present: { yo:'aprendo', tu:'aprendes', el:'aprende', nosotros:'aprendemos', vosotros:'aprendéis', ellos:'aprenden' }, preterite: { yo:'aprendí', tu:'aprendiste', el:'aprendió', nosotros:'aprendimos', vosotros:'aprendisteis', ellos:'aprendieron' }, subjunctive: { yo:'aprenda', tu:'aprendas', el:'aprenda', nosotros:'aprendamos', vosotros:'aprendáis', ellos:'aprendan' }, imperativoTu: { tu:'aprende', tuNeg:'no aprendas' } } },
+    { inf: 'vivir', zh: '居住；生活', forms: { present: { yo:'vivo', tu:'vives', el:'vive', nosotros:'vivimos', vosotros:'vivís', ellos:'viven' }, preterite: { yo:'viví', tu:'viviste', el:'vivió', nosotros:'vivimos', vosotros:'vivisteis', ellos:'vivieron' }, subjunctive: { yo:'viva', tu:'vivas', el:'viva', nosotros:'vivamos', vosotros:'viváis', ellos:'vivan' }, imperativoTu: { tu:'vive', tuNeg:'no vivas' } } },
+    { inf: 'escribir', zh: '写', forms: { present: { yo:'escribo', tu:'escribes', el:'escribe', nosotros:'escribimos', vosotros:'escribís', ellos:'escriben' }, preterite: { yo:'escribí', tu:'escribiste', el:'escribió', nosotros:'escribimos', vosotros:'escribisteis', ellos:'escribieron' }, subjunctive: { yo:'escriba', tu:'escribas', el:'escriba', nosotros:'escribamos', vosotros:'escribáis', ellos:'escriban' }, imperativoTu: { tu:'escribe', tuNeg:'no escribas' } } },
+    { inf: 'abrir', zh: '打开', forms: { present: { yo:'abro', tu:'abres', el:'abre', nosotros:'abrimos', vosotros:'abrís', ellos:'abren' }, preterite: { yo:'abrí', tu:'abriste', el:'abrió', nosotros:'abrimos', vosotros:'abristeis', ellos:'abrieron' }, subjunctive: { yo:'abra', tu:'abras', el:'abra', nosotros:'abramos', vosotros:'abráis', ellos:'abran' }, imperativoTu: { tu:'abre', tuNeg:'no abras' } } },
+    { inf: 'ser', zh: '是', forms: { present: { yo:'soy', tu:'eres', el:'es', nosotros:'somos', vosotros:'sois', ellos:'son' }, preterite: { yo:'fui', tu:'fuiste', el:'fue', nosotros:'fuimos', vosotros:'fuisteis', ellos:'fueron' }, subjunctive: { yo:'sea', tu:'seas', el:'sea', nosotros:'seamos', vosotros:'seáis', ellos:'sean' }, imperativoTu: { tu:'sé', tuNeg:'no seas' } } },
+    { inf: 'estar', zh: '在；处于', forms: { present: { yo:'estoy', tu:'estás', el:'está', nosotros:'estamos', vosotros:'estáis', ellos:'están' }, preterite: { yo:'estuve', tu:'estuviste', el:'estuvo', nosotros:'estuvimos', vosotros:'estuvisteis', ellos:'estuvieron' }, subjunctive: { yo:'esté', tu:'estés', el:'esté', nosotros:'estemos', vosotros:'estéis', ellos:'estén' }, imperativoTu: { tu:'está', tuNeg:'no estés' } } },
+    { inf: 'tener', zh: '有', forms: { present: { yo:'tengo', tu:'tienes', el:'tiene', nosotros:'tenemos', vosotros:'tenéis', ellos:'tienen' }, preterite: { yo:'tuve', tu:'tuviste', el:'tuvo', nosotros:'tuvimos', vosotros:'tuvisteis', ellos:'tuvieron' }, subjunctive: { yo:'tenga', tu:'tengas', el:'tenga', nosotros:'tengamos', vosotros:'tengáis', ellos:'tengan' }, imperativoTu: { tu:'ten', tuNeg:'no tengas' } } },
+    { inf: 'hacer', zh: '做', forms: { present: { yo:'hago', tu:'haces', el:'hace', nosotros:'hacemos', vosotros:'hacéis', ellos:'hacen' }, preterite: { yo:'hice', tu:'hiciste', el:'hizo', nosotros:'hicimos', vosotros:'hicisteis', ellos:'hicieron' }, subjunctive: { yo:'haga', tu:'hagas', el:'haga', nosotros:'hagamos', vosotros:'hagáis', ellos:'hagan' }, imperativoTu: { tu:'haz', tuNeg:'no hagas' } } },
+    { inf: 'ir', zh: '去', forms: { present: { yo:'voy', tu:'vas', el:'va', nosotros:'vamos', vosotros:'vais', ellos:'van' }, preterite: { yo:'fui', tu:'fuiste', el:'fue', nosotros:'fuimos', vosotros:'fuisteis', ellos:'fueron' }, subjunctive: { yo:'vaya', tu:'vayas', el:'vaya', nosotros:'vayamos', vosotros:'vayáis', ellos:'vayan' }, imperativoTu: { tu:'ve', tuNeg:'no vayas' } } },
+    { inf: 'querer', zh: '想要', forms: { present: { yo:'quiero', tu:'quieres', el:'quiere', nosotros:'queremos', vosotros:'queréis', ellos:'quieren' }, preterite: { yo:'quise', tu:'quisiste', el:'quiso', nosotros:'quisimos', vosotros:'quisisteis', ellos:'quisieron' }, subjunctive: { yo:'quiera', tu:'quieras', el:'quiera', nosotros:'queramos', vosotros:'queráis', ellos:'quieran' }, imperativoTu: { tu:'quiere', tuNeg:'no quieras' } } },
+    { inf: 'poder', zh: '能', forms: { present: { yo:'puedo', tu:'puedes', el:'puede', nosotros:'podemos', vosotros:'podéis', ellos:'pueden' }, preterite: { yo:'pude', tu:'pudiste', el:'pudo', nosotros:'pudimos', vosotros:'pudisteis', ellos:'pudieron' }, subjunctive: { yo:'pueda', tu:'puedas', el:'pueda', nosotros:'podamos', vosotros:'podáis', ellos:'puedan' }, imperativoTu: { tu:'puede', tuNeg:'no puedas' } } },
+    { inf: 'venir', zh: '来', forms: { present: { yo:'vengo', tu:'vienes', el:'viene', nosotros:'venimos', vosotros:'venís', ellos:'vienen' }, preterite: { yo:'vine', tu:'viniste', el:'vino', nosotros:'vinimos', vosotros:'vinisteis', ellos:'vinieron' }, subjunctive: { yo:'venga', tu:'vengas', el:'venga', nosotros:'vengamos', vosotros:'vengáis', ellos:'vengan' }, imperativoTu: { tu:'ven', tuNeg:'no vengas' } } },
+    { inf: 'decir', zh: '说', forms: { present: { yo:'digo', tu:'dices', el:'dice', nosotros:'decimos', vosotros:'decís', ellos:'dicen' }, preterite: { yo:'dije', tu:'dijiste', el:'dijo', nosotros:'dijimos', vosotros:'dijisteis', ellos:'dijeron' }, subjunctive: { yo:'diga', tu:'digas', el:'diga', nosotros:'digamos', vosotros:'digáis', ellos:'digan' }, imperativoTu: { tu:'di', tuNeg:'no digas' } } },
+    { inf: 'dar', zh: '给', forms: { present: { yo:'doy', tu:'das', el:'da', nosotros:'damos', vosotros:'dais', ellos:'dan' }, preterite: { yo:'di', tu:'diste', el:'dio', nosotros:'dimos', vosotros:'disteis', ellos:'dieron' }, subjunctive: { yo:'dé', tu:'des', el:'dé', nosotros:'demos', vosotros:'deis', ellos:'den' }, imperativoTu: { tu:'da', tuNeg:'no des' } } }
 ];
