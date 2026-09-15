@@ -25,8 +25,8 @@
             background: #e8f2fb;
             min-height: 100vh;
             padding: 20px;
-            /* iPhone 底部工具条会盖住页面最下面的按钮，留出安全区 */
-            padding-bottom: calc(20px + env(safe-area-inset-bottom));
+            /* 底部留白：iOS 工具条安全区 + 悬浮经验条的高度 */
+            padding-bottom: calc(44px + env(safe-area-inset-bottom));
         }
         .app {
             max-width: 800px;
@@ -34,13 +34,31 @@
             background: #fff;
             border-radius: 20px;
             box-shadow: 0 10px 40px rgba(0,0,0,0.1);
-            overflow: hidden;
+            /* 不用 overflow:hidden——它会让内部的 sticky 悬浮条失效；
+               header 自己带圆角即可 */
         }
         header {
             background: var(--primary);
             color: white;
             padding: 20px;
             text-align: center;
+            border-radius: 20px 20px 0 0;
+        }
+        /* 顶部悬浮上下文条：滚动时贴在屏幕顶端，随时显示当前课/当前进度 */
+        .context-bar {
+            position: sticky;
+            position: -webkit-sticky;
+            top: env(safe-area-inset-top, 0px);
+            z-index: 50;
+            background: #eef6fd;
+            border-bottom: 1px solid #d5e6f5;
+            padding: 8px 16px;
+            font-size: 0.85em;
+            color: #2c5282;
+            font-weight: 500;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
         header h1 { font-size: 1.5em; }
         header p { font-size: 0.85em; opacity: 0.8; margin-top: 4px; }
@@ -293,6 +311,60 @@
         .q-opt:hover { border-color: var(--blue); }
         .q-opt.sel { border-color: var(--blue); background: #eaf4fd; font-weight: bold; }
         .q-opt.correct-opt { border-color: var(--green); background: #e8f8f0; }
+        .q-tip { font-size: 0.8em; color: #999; margin: 8px 0 4px; }
+        button:disabled { opacity: 0.45; cursor: not-allowed; }
+        /* 答案卡里可点词查词典 */
+        .wlink { cursor: pointer; border-bottom: 1px dotted #9bb8d8; }
+        .wlink:hover { background: #eaf4fd; }
+        /* 等级悬浮胶囊（左上角） */
+        .level-pill {
+            position: fixed; top: 10px; left: 10px; z-index: 60;
+            background: rgba(43,108,176,0.92); color: #fff;
+            padding: 6px 14px; border-radius: 999px;
+            font-size: 0.85em; font-weight: bold;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+            white-space: nowrap;
+        }
+        /* 底部经验条（全宽长条，淡蓝轨道 + 蓝绿渐变填充） */
+        .xp-bar-wrap {
+            position: fixed; left: 0; right: 0; bottom: 0; z-index: 60;
+            height: calc(20px + env(safe-area-inset-bottom));
+            background: #dcecf9;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+        }
+        .xp-fill {
+            position: absolute; left: 0; top: 0; bottom: env(safe-area-inset-bottom);
+            width: 0%;
+            background: linear-gradient(90deg, #4a9fe3, #27ae60);
+            transition: width 0.7s ease;
+            border-radius: 0 8px 8px 0;
+        }
+        .xp-text {
+            position: absolute; left: 0; right: 0; top: 0; bottom: env(safe-area-inset-bottom);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 11px; color: #2c5282; font-weight: 600;
+            text-shadow: 0 0 4px rgba(255,255,255,0.9);
+            pointer-events: none; white-space: nowrap; overflow: hidden;
+        }
+        /* 答对粒子：从答案卡飞向底部经验条 */
+        .xp-particle {
+            position: fixed; z-index: 70; pointer-events: none;
+            border-radius: 50%;
+            transition: transform 0.7s cubic-bezier(0.3, 0.1, 0.6, 1), opacity 0.25s ease;
+            will-change: transform, opacity;
+        }
+        /* 升级庆祝小横幅 */
+        .level-toast {
+            position: fixed; top: 52px; left: 50%; z-index: 80;
+            transform: translateX(-50%);
+            background: linear-gradient(90deg, #f6c343, #f39c12);
+            color: #7a4a00; font-weight: bold; font-size: 0.95em;
+            padding: 10px 22px; border-radius: 999px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+            transition: opacity 0.4s ease, transform 0.4s ease;
+            opacity: 0; pointer-events: none;
+        }
+        .level-toast.show { opacity: 1; transform: translateX(-50%) translateY(6px); }
         .tile-tray {
             min-height: 46px;
             background: #fff;
@@ -488,12 +560,15 @@
     </header>
     <nav>
         <button class="active" onclick="switchTab('textbook')">📚 教材</button>
+        <button onclick="switchTab('dict')">🔍 词典</button>
         <button onclick="switchTab('learn')">📖 学习</button>
         <button onclick="switchTab('conj')">🔀 变位</button>
         <button onclick="switchTab('review')">🔁 错题</button>
         <button onclick="switchTab('dictation')">🎧 精听</button>
         <button onclick="switchTab('stats')">📅 打卡</button>
     </nav>
+    <!-- 悬浮上下文条：随时知道自己在学第几课、第几题 -->
+    <div class="context-bar" id="contextBar"></div>
 
     <!-- 教材主线（讲解 → 练习） -->
     <div id="textbook" class="tab-content active">
@@ -502,6 +577,17 @@
             按《现代西班牙语》第一册循序渐进：先看讲解，再做练习。
         </p>
         <div id="textbookContent"></div>
+    </div>
+
+    <!-- 离线词典 -->
+    <div id="dict" class="tab-content">
+        <h2 style="margin-bottom:5px;">🔍 离线词典</h2>
+        <p style="color:#888; margin-bottom:15px; font-size:0.9em;">西语-中文小词典，离线可用。输西语单词，不用打重音符号；动词变形也能查（tienes → tener）。</p>
+        <div class="input-area">
+            <input type="text" id="dictInput" placeholder="输入西语单词，如：casa / tienes / bonita..." oninput="renderDictSearch(this.value)">
+        </div>
+        <div id="dictHistory" style="margin:6px 0 10px;"></div>
+        <div id="dictResults"></div>
     </div>
 
     <!-- 学习模式 -->
@@ -518,8 +604,8 @@
 
         <div class="stats">
             <div class="stat-item">
-                <div class="stat-value" id="scoreDisplay">0</div>
-                <div class="stat-label">总得分</div>
+                <div class="stat-value" id="scoreDisplay">Lv.1</div>
+                <div class="stat-label" id="levelLabel">等级 · 总分 0</div>
             </div>
             <div class="stat-item">
                 <div class="stat-value" id="newToday">0</div>
@@ -530,6 +616,8 @@
                 <div class="stat-label">错题数</div>
             </div>
         </div>
+        <div class="progress-bar" style="height:6px;"><div class="progress-fill" id="levelFill" style="width:0%"></div></div>
+        <div id="levelHint" style="font-size:0.8em; color:#888; text-align:center; margin:4px 0 10px;"></div>
         <div class="progress-bar">
             <div class="progress-fill" id="progressFill" style="width:0%"></div>
         </div>
@@ -554,7 +642,7 @@
             <button class="btn-success" onclick="checkAnswer()">✅ 检查</button>
             <button class="btn-warning" onclick="showHint()">💡 提示</button>
             <button class="btn-secondary" onclick="revealAnswer()">👁 显示答案</button>
-            <button class="btn-primary" onclick="nextQuestion()">➡️ 下一题</button>
+            <button class="btn-primary" onclick="nextQuestion()" id="nextBtn" disabled>➡️ 下一题</button>
         </div>
         <div class="feedback" id="feedback"></div>
         <div class="settings-row">
@@ -742,11 +830,23 @@
     </div>
 </div>
 
+<!-- 等级悬浮胶囊 + 底部经验条 + 升级横幅（必须在脚本之前，init 才能写到它们） -->
+<div class="level-pill" id="levelPill">Lv.1</div>
+<div class="level-toast" id="levelToast"></div>
+<div class="xp-bar-wrap" id="xpBarWrap">
+    <div class="xp-fill" id="xpFill"></div>
+    <div class="xp-text" id="xpText">Lv.1 好奇新手</div>
+</div>
+
 <script src="./course-data.js"></script>
+<script src="./dict-data.js"></script>
 <script>
 // ==================== 版本隔离与自动清理 ====================
-// 每次迭代只改这一行，做题进度／打卡天数就会自动归零。
+// APP_VERSION = 存档版本：只有结构版（改存档格式）才 +1，届时做题进度／打卡天数自动归零。
 const APP_VERSION = '1.0.0';
+// RELEASE_VERSION = 发布版本：每次发版（内容版/功能内容版/结构版）都 +1，显示在页面底部，
+// 用来确认自己装的是哪个版本。内容版不清数据，所以它和 APP_VERSION 是两条线。
+const RELEASE_VERSION = '1.6.3';
 
 // 存档拆成两套：
 //   sp_v<版本>_*  会话进度、打卡天数、今日计数 —— 换版本自动清空
@@ -901,6 +1001,102 @@ let currentSentence = null;       // 当前显示的句子
 let score = 0;
 let attempts = 0;
 let hintUsed = false;
+
+// ==================== 得分等级 ====================
+// 总分只是裸数字，换成等级给个参照系：门槛约 +50% 递增，正常学习约 3 个会话升一级
+const LEVELS = [
+    { min: 0,    label: '好奇新手' },
+    { min: 50,   label: '入门学徒' },
+    { min: 150,  label: '渐入佳境' },
+    { min: 300,  label: '小有所成' },
+    { min: 500,  label: '稳步前行' },
+    { min: 800,  label: '熟能生巧' },
+    { min: 1200, label: '得心应手' },
+    { min: 1700, label: '西语达人' },
+    { min: 2400, label: '融会贯通' },
+    { min: 3200, label: '西语行者' },
+];
+function levelFromScore(score) {
+    const s = toInt(score, 0);
+    let idx = 0;
+    LEVELS.forEach((l, i) => { if (s >= l.min) idx = i; });
+    const next = idx < LEVELS.length - 1 ? LEVELS[idx + 1].min : null;
+    return {
+        lv: idx + 1,
+        label: LEVELS[idx].label,
+        min: LEVELS[idx].min,
+        nextMin: next,
+        nextLabel: next !== null ? LEVELS[idx + 1].label : null,
+    };
+}
+let lastLevelShown = null;   // 上次显示的等级（升级时弹横幅）
+
+function updateLevelDisplay() {
+    const info = levelFromScore(score);
+    const sd = document.getElementById('scoreDisplay');
+    if (sd) sd.textContent = 'Lv.' + info.lv;
+    const ll = document.getElementById('levelLabel');
+    if (ll) ll.textContent = '等级 · 总分 ' + score;
+    const fill = document.getElementById('levelFill');
+    const hint = document.getElementById('levelHint');
+    const pct = info.nextMin === null ? 100 : Math.min(100, Math.max(0, Math.round((score - info.min) / (info.nextMin - info.min) * 100)));
+    if (fill) fill.style.width = pct + '%';
+    if (hint) hint.textContent = info.nextMin === null
+        ? `👑 ${info.label} · 已满级（总分 ${score}）`
+        : `Lv.${info.lv} ${info.label} → ${info.nextLabel} 还需 ${info.nextMin - score} 分`;
+    // 底部经验条 + 左上等级胶囊
+    const xpFill = document.getElementById('xpFill');
+    if (xpFill) xpFill.style.width = pct + '%';
+    const xpText = document.getElementById('xpText');
+    if (xpText) xpText.textContent = info.nextMin === null
+        ? `👑 ${info.label} · 已满级`
+        : `Lv.${info.lv} ${info.label} · ${score - info.min}/${info.nextMin - info.min}`;
+    const pill = document.getElementById('levelPill');
+    if (pill) pill.textContent = `Lv.${info.lv} ${info.label}`;
+    // 升级庆祝（只升不降）
+    if (lastLevelShown !== null && info.lv > lastLevelShown) {
+        showLevelToast(`🎉 升级！Lv.${info.lv} ${info.label}`);
+    }
+    lastLevelShown = info.lv;
+}
+
+let levelToastTimer = null;
+function showLevelToast(text) {
+    const el = document.getElementById('levelToast');
+    if (!el) return;
+    el.textContent = text;
+    el.classList.add('show');
+    if (levelToastTimer) clearTimeout(levelToastTimer);
+    levelToastTimer = setTimeout(() => el.classList.remove('show'), 2600);
+}
+
+// 答对粒子：从答案卡飞向底部经验条，分数越高粒子越大越多
+function spawnXpParticles(points) {
+    const bar = document.getElementById('xpBarWrap');
+    const from = document.getElementById('spanishCard');
+    if (!bar || !from || !document.body || !document.createElement) return;
+    const barRect = bar.getBoundingClientRect();
+    const fromRect = from.getBoundingClientRect();
+    const targetX = barRect.left + barRect.width * 0.5;
+    const targetY = barRect.top + barRect.height * 0.5;
+    const count = points >= 2 ? 7 : 5;              // 满分粒子更多
+    const sizeBase = points >= 2 ? 12 : 8;          // 满分粒子更大
+    const colors = ['#f6c343', '#27ae60', '#4a9fe3'];
+    for (let i = 0; i < count; i++) {
+        const p = document.createElement('span');
+        p.className = 'xp-particle';
+        const size = sizeBase + Math.random() * 8;
+        const startX = fromRect.left + fromRect.width * (0.2 + Math.random() * 0.6);
+        const startY = fromRect.top + fromRect.height * (0.2 + Math.random() * 0.6);
+        p.style.cssText = `left:${startX}px; top:${startY}px; width:${size}px; height:${size}px; background:${colors[i % 3]}; opacity:1; transform:translate(0,0);`;
+        document.body.appendChild(p);
+        setTimeout(() => {
+            p.style.transform = `translate(${targetX - startX}px, ${targetY - startY}px) scale(0.6)`;
+            setTimeout(() => { p.style.opacity = '0'; }, 550);
+            setTimeout(() => { if (p.parentNode) p.parentNode.removeChild(p); }, 1000);
+        }, i * 45);   // 错开起飞，形成粒子流
+    }
+}
 let todayLearnedCount = 0;
 let dailyLimit = 10;
 let wrongList = [];
@@ -1154,7 +1350,7 @@ function init() {
     checkins = loadData('checkins', {});
     score = toInt(loadData('score', 0), 0);
     dailyLimit = toInt(loadData('dailyLimit', 10), 10);
-    TTS.rate = loadData('ttsRate', 'normal') === 'slow' ? 0.6 : 1.0;
+    TTS.rate = loadData('ttsRate', 'normal') === 'slow' ? 0.6 : 0.9;
     cards = loadMemory('cards', {});
 
     // 每日计数必须跟日期绑定，否则累计到上限后会被永久锁死
@@ -1167,7 +1363,7 @@ function init() {
     }
 
     document.getElementById('wrongCount').textContent = wrongList.length;
-    document.getElementById('scoreDisplay').textContent = score;
+    updateLevelDisplay();
     document.getElementById('newToday').textContent = todayLearnedCount;
 
     // 填充课时选择下拉框（第一个选项是今日计划）
@@ -1232,11 +1428,13 @@ function init() {
     updateTtsRateButtons();
     updateTtsVoiceLabel();
     setTimeout(updateTtsVoiceLabel, 800);   // iOS 的语音列表是异步加载的，稍后再补一次
+    updateNextBtn();
     updateTypePrefsBtn();
     const cvc = document.getElementById('conjVerbCount');
     if (cvc) cvc.textContent = VERBS.length;
+    updateContextBar();
     document.getElementById('versionTag').textContent =
-        `v${APP_VERSION}` + (freshInstall ? '　·　已为新版本重置进度（记忆曲线保留）' : '');
+        `v${RELEASE_VERSION}` + (freshInstall ? '　·　已为新版本重置进度（记忆曲线保留）' : '');
 }
 
 // 加载指定课时，并随机打乱句子队列
@@ -1255,6 +1453,7 @@ function loadLesson(lessonId) {
     // 显示第一句
     loadCurrentSentence();
     updateProgress();
+    updateContextBar();
 }
 
 // 更新课时信息显示
@@ -1318,6 +1517,8 @@ function lessonTiers(lesson) {
 // ==================== 题型引擎 ====================
 const TYPE_LABEL = { typing: '⌨️ 拼写', choice: '🔘 选择', tiles: '🧩 拼词', dictation: '🎧 听写' };
 let currentQuestion = null;   // { sentence, type, options, tiles, tray }
+let questionAnswered = false; // 当前题是否已作答/看过答案——没作答前「下一题」禁用，防误触跳题
+let questionSolved = false;   // 答对/基本对后锁定，防止重复提交刷 SRS 次数
 
 // 题型分配（纯函数）：按 idx 奇偶交替，刷新后重算结果一致；不落盘
 function assignQuestionType(sentence, idx) {
@@ -1396,6 +1597,8 @@ function loadCurrentSentence() {
     if (mode === MODE_PLAN) {
         if (sessionIndex >= sessionQueue.length) {
             showSessionComplete();
+            updateNextBtn();
+            updateContextBar();
             return;
         }
         currentSentence = sessionQueue[sessionIndex];
@@ -1411,10 +1614,18 @@ function loadCurrentSentence() {
             document.getElementById('feedback').textContent = '🎉 本课时所有句子已完成！请选择其他课时或复习错题。';
             document.getElementById('feedback').className = 'feedback';
             currentSentence = null;
+            updateNextBtn();
+            updateContextBar();
             return;
         }
         currentSentence = sentenceQueue[queueIndex];
     }
+
+    // 新题未作答：「下一题」先禁用，防止误触跳题
+    questionAnswered = false;
+    questionSolved = false;
+    updateNextBtn();
+    updateContextBar();
 
     const tier = currentSentence.tier || 1;
     const idx = (mode === MODE_PLAN) ? sessionIndex : queueIndex;
@@ -1459,6 +1670,10 @@ function renderQuestion() {
         ia.classList.add('hidden');
         ec.classList.remove('hidden');
         sc.classList.remove('hidden');
+        const tip = document.createElement('div');
+        tip.className = 'q-tip';
+        tip.textContent = '👆 点一下：选中并听发音；再点同一项：提交';
+        ta.appendChild(tip);
         q.options.forEach(opt => {
             const b = document.createElement('button');
             b.className = 'q-opt';
@@ -1493,12 +1708,17 @@ function speakDictQuestion() {
 }
 
 // ---- 选择题 ----
+// 第一遍：选中并朗读该句；第二遍点同一项：提交（不再出声）
 function choicePick(opt, btnEl) {
     if (!currentQuestion) return;
+    if (currentQuestion.chosen === opt) {
+        checkAnswer(true);
+        return;
+    }
     currentQuestion.chosen = opt;
     document.querySelectorAll('#typeArea .q-opt').forEach(b => b.classList.remove('sel'));
     if (btnEl) btnEl.classList.add('sel');
-    checkAnswer();
+    speak(opt);
 }
 
 function markCorrectOption() {
@@ -1707,8 +1927,9 @@ function speakCurrent() {
     if (currentSentence) speak(currentSentence.spanish);
 }
 
-function checkAnswer() {
+function checkAnswer(noSpeak) {
     if (!currentSentence || !currentQuestion) return;
+    if (questionSolved) return;   // 已答对锁定，防重复提交刷 SRS
     const feedbackEl = document.getElementById('feedback');
     let result;
     if (currentQuestion.type === 'choice') {
@@ -1746,12 +1967,14 @@ function checkAnswer() {
         }
         result = judgeAnswer(currentSentence.spanish, userRaw);
     }
-    finishAnswer(result);
+    finishAnswer(result, noSpeak);
 }
 
 // 四题型判分汇聚点：SRS 调度 + 计分 + 错题本 + 反馈完全一致
-function finishAnswer(result) {
+function finishAnswer(result, noSpeak) {
     const feedbackEl = document.getElementById('feedback');
+    questionAnswered = true;      // 提交过答案（无论对错）→ 解锁「下一题」
+    updateNextBtn();
     // 每次作答都推进 SRS 调度：答对拉长间隔、答错打回 1 天（难题有封顶）
     scheduleCard(currentSentence, statusToQuality(result.status));
 
@@ -1763,11 +1986,13 @@ function finishAnswer(result) {
             : '';
         feedbackEl.textContent = `✅ 完全正确！+${points}分 ${typoMsg}`;
         feedbackEl.className = 'feedback correct';
-        document.getElementById('scoreDisplay').textContent = score;
+        updateLevelDisplay();
         saveData('score', score);
         removeWrongItem(currentSentence.spanish);
         revealAnswer(true);
-        speak(currentSentence.spanish);   // 答对自动朗读，眼睛耳朵一起记
+        if (points > 0) spawnXpParticles(points);   // 答对粒子飞向底部经验条
+        if (!noSpeak) speak(currentSentence.spanish);   // 答对自动朗读，眼睛耳朵一起记
+        questionSolved = true;
     } else if (result.status === 'good') {
         const points = hintUsed ? 0 : 1;
         score += points;
@@ -1776,11 +2001,13 @@ function finishAnswer(result) {
         if (result.extraUserWords.length > 0) parts.push(`多写了：${result.extraUserWords.join(', ')}（不扣分）`);
         feedbackEl.textContent = `⚠️ 基本正确！+${points}分 ${parts.length ? '（' + parts.join('；') + '）' : ''}`;
         feedbackEl.className = 'feedback correct';
-        document.getElementById('scoreDisplay').textContent = score;
+        updateLevelDisplay();
         saveData('score', score);
         removeWrongItem(currentSentence.spanish);
         revealAnswer(true);
-        speak(currentSentence.spanish);
+        if (points > 0) spawnXpParticles(points);
+        if (!noSpeak) speak(currentSentence.spanish);
+        questionSolved = true;
     } else if (result.status === 'partial') {
         const matchedWords = result.matchedCorrect.map(m => m.word).join(', ');
         const missedWords = result.unmatchedCorrect.map(m => m.word).join(', ');
@@ -1832,20 +2059,43 @@ function showHint() {
 // silent=true 时只展开答案，不覆盖已有的判分反馈
 function revealAnswer(silent) {
     if (!currentSentence) return;
-    const highlighted = currentSentence.spanish.replace(/([áéíóúüñ¿¡])/g, '<mark>$1</mark>');
     const spanishEl = document.getElementById('spanishText');
-    spanishEl.innerHTML = highlighted;
+    // 逐词渲染成可点词（点词查词典），重音等特殊字符在词内高亮
+    spanishEl.innerHTML = '';
+    currentSentence.spanish.split(/\s+/).forEach(token => {
+        const span = document.createElement('span');
+        span.className = 'wlink';
+        span.innerHTML = token.replace(/([áéíóúüñ¿¡])/g, '<mark>$1</mark>');
+        const clean = token.replace(/[.,!?¿¡;:'"()]/g, '');
+        span.onclick = ev => {
+            ev.stopPropagation();
+            if (spanishEl.classList.contains('blurred')) return;   // 答案还藏着时，点击只是揭开
+            if (clean) openDictLookup(clean);
+        };
+        spanishEl.appendChild(span);
+        spanishEl.appendChild(document.createTextNode(' '));
+    });
     spanishEl.classList.remove('blurred');
     const sc = document.getElementById('spanishCard');
     if (sc) sc.classList.remove('hidden');   // 听写题型藏了西语卡，显示答案时恢复
     if (silent === true) return;
     document.getElementById('feedback').textContent = '👁 答案已显示，特殊字符已高亮';
     document.getElementById('feedback').className = 'feedback';
+    questionAnswered = true;   // 看过答案也算完成本题，允许点「下一题」
+    updateNextBtn();
 }
 
 let limitAcknowledged = false;   // 今天已确认过“超额继续”，就不再反复弹窗
+
+// 「下一题」按钮状态：没作答前禁用（防误触跳题）；作答或看过答案后解锁
+function updateNextBtn() {
+    const btn = document.getElementById('nextBtn');
+    if (btn) btn.disabled = !(questionAnswered && currentSentence);
+}
+
 function nextQuestion() {
     if (!currentSentence) return;
+    if (!questionAnswered) return;   // 双保险：按钮已禁用，再挡一次程序调用
     if (mode === MODE_PLAN) {
         // 计划模式：每点一次"下一题"完成一题。答错也会排进 SRS，1 天后还会回来。
         sessionIndex++;
@@ -2085,7 +2335,7 @@ function showTextbookLesson(id) {
             ${t.dialogue.map(d => `
             <div class="dlg-row">
                 <span class="dlg-speaker">${d.speaker}</span>
-                <span class="dlg-es">${d.es} <button class="speak-btn" onclick="speak('${d.es.replace(/'/g, "\\'")}')">🔊</button></span>
+                <span class="dlg-es">${d.es} <button class="speak-btn" onclick="speakDlgLine('${d.es.replace(/'/g, "\\'")}', '${d.speaker.replace(/'/g, "\\'")}')">🔊</button></span>
                 <span class="dlg-zh">${d.zh}</span>
             </div>`).join('')}
         </div>`;
@@ -2108,19 +2358,34 @@ function showTextbookLesson(id) {
     window.scrollTo(0, 0);
 }
 
+// ---- 对话角色声音：说话人性别 → 男声/女声 ----
+const FEMALE_SPEAKERS = ['maria', 'maría', 'ana', 'susana', 'elena', 'carmen', 'mónica', 'lucia'];
+function voiceForSpeaker(name) {
+    const n = normalize(name);
+    if (FEMALE_SPEAKERS.some(f => n.includes(f))) return 'female';
+    return /a$/.test(n) ? 'female' : 'male';   // 西班牙语女名基本以 a 结尾
+}
+// 点读对话单句：按说话人性别选声音
+function speakDlgLine(es, speaker) {
+    speak(es, { voice: voiceForSpeaker(speaker) === 'male' ? TTS.male() : TTS.female() });
+}
+
 // 对话朗读：onEnd 链式逐句读，规避 iOS 长文本中断。
 // 之前只读第一句的原因：续句的 speak() 开头先 cancel()，把链给掐断了。
 // 现在：第一句负责打断旧朗读，续句 noCancel 只排队；token 变了（用户点了别的朗读）就整段停止。
+// 每句按说话人性别换声音（女声教学、男声对话）；句间留 450ms 气口，男女声切换不赶。
 function speakDialogue(lines, i) {
     i = i || 0;
     if (!lines || i >= lines.length) return;
     const token = TTS.token;
+    const voice = voiceForSpeaker(lines[i].speaker) === 'male' ? TTS.male() : TTS.female();
     speak(lines[i].es, {
+        voice,
         noCancel: i > 0,
         onEnd: () => {
             if (i > 0 && TTS.token !== token) return;   // 被用户打断 → 不抢用户的耳朵
-            // WebKit 在 onend 回调里立刻 speak 有时不发声，垫个短延迟
-            setTimeout(() => speakDialogue(lines, i + 1), 120);
+            // 450ms 句间停顿（WebKit 立刻 speak 不发声的规避 + 自然的换气口）
+            setTimeout(() => speakDialogue(lines, i + 1), 450);
         }
     });
 }
@@ -2137,16 +2402,50 @@ function startTextbookPractice(id) {
 }
 
 // ==================== 错题模式 ====================
+let currentTab = 'textbook';   // 当前页签（悬浮上下文条要用）
+
+// 顶部悬浮上下文条：学习/精听时一眼看到「现在是第几课、第几题」
+function updateContextBar() {
+    const el = document.getElementById('contextBar');
+    if (!el) return;
+    if (currentTab === 'textbook') {
+        el.textContent = '📚 教材主线 · 16 课（按《现代西班牙语》第一册）';
+    } else if (currentTab === 'dict') {
+        el.textContent = '🔍 离线词典 · 课程词汇全覆盖，动词变形也能查';
+    } else if (currentTab === 'dictation' && dictSentence) {
+        const ls = course.find(l => l.id === dictSentence.lessonId);
+        el.textContent = `🎧 精听 · 材料来自：${ls ? ls.title : '随机全库'}`;
+    } else if (currentLesson && mode !== MODE_PLAN) {
+        const pos = Math.min(queueIndex + 1, sentenceQueue.length);
+        el.textContent = `📕 ${currentLesson.title} · 第 ${pos} / ${sentenceQueue.length} 句`;
+    } else if (mode === MODE_PLAN && sessionPlan) {
+        const total = sessionPlan.total;
+        const pos = Math.min(sessionIndex + 1, total);
+        el.textContent = `📋 今日计划 · 第 ${pos} / ${total} 题（新题 ${sessionPlan.newCount} ＋ 复习 ${sessionPlan.reviewCount}）`;
+    } else if (currentTab === 'review') {
+        el.textContent = `🔁 错题重做 · ${wrongList.length} 题`;
+    } else if (currentTab === 'conj') {
+        el.textContent = '🔀 动词变位专项 · 严格判分，不进 SRS';
+    } else if (currentTab === 'stats') {
+        el.textContent = '📅 打卡与统计';
+    } else {
+        el.textContent = '📋 今日计划 · 还没规划今天';
+    }
+}
+
 function switchTab(tab) {
     document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
     document.querySelectorAll('nav button').forEach(el => el.classList.remove('active'));
     document.getElementById(tab).classList.add('active');
     const btns = document.querySelectorAll('nav button');
-    const idx = ['textbook','learn','conj','review','dictation','stats'].indexOf(tab);
+    const idx = ['textbook','dict','learn','conj','review','dictation','stats'].indexOf(tab);
     if (idx >= 0 && btns[idx]) btns[idx].classList.add('active');
     if (tab === 'textbook') renderTextbook();
+    if (tab === 'dict') renderDictHistory();
     if (tab === 'review') renderReview();
     if (tab === 'stats') renderStats();
+    currentTab = tab;
+    updateContextBar();
 }
 
 function renderReview() {
@@ -2204,7 +2503,7 @@ function checkReviewAnswer(idx) {
 // 浏览器语音合成，零依赖零网络。无声环境（或测试沙箱）静默跳过，绝不报错。
 const TTS = {
     voices: [],
-    rate: 1.0,
+    rate: 0.9,   // 正常语速（比 1.0 慢一丢丢，比慢速 0.6 快）
     token: 0,      // 每次打断（cancel）时 +1；链式朗读靠它识别「被用户打断」并及时停止
     available() {
         return typeof window !== 'undefined' && typeof window.speechSynthesis !== 'undefined'
@@ -2214,42 +2513,92 @@ const TTS = {
         if (!TTS.available()) return;
         try { TTS.voices = window.speechSynthesis.getVoices() || []; } catch(e) { TTS.voices = []; }
     },
-    pickVoice() {
+    pickVoice(gender) {
         TTS.refreshVoices();
         const es = TTS.voices.filter(v => (v.lang || '').toLowerCase().startsWith('es'));
         if (es.length === 0) return null;
-        // 优先本地语音：网络语音（localService=false）在 iOS 上会忽略语速设置
+        // 1) 硬指定：女声只用 Paulina、男声只用 Diego（用户拍板，不接受其他）。
+        //    不区分本地/联网——Paulina 常以增强音形式出现（localService=false），照用。
+        const target = gender === 'male' ? 'diego' : 'paulina';
+        const exact = es.find(v => normalize(v.name || '').startsWith(target));
+        if (exact) return exact;
+        // 2) 设备上没有这两个声音时（如 Chrome 只有 Google 语音）才退回启发式
         const local = es.filter(v => v.localService !== false);
         const pool = local.length > 0 ? local : es;
-        // 优先 es-ES 里音质公认较好的声音（macOS/iOS：Mónica/Paulina/Jorge；Chrome：Google español）
-        // 用 normalize 比较：重音符号不同的拼写（Mónica/Monica）都能匹配
-        const pref = ['monica', 'paulina', 'jorge', 'google espanol'];
-        for (const p of pref) {
+        const prefs = gender === 'male'
+            ? ['diego', 'jorge', 'javier', 'sergio', 'carlos']
+            : ['paulina', 'monica', 'marisol', 'sara', 'lucia'];
+        for (const p of prefs) {
             const hit = pool.find(v => (v.lang || '').toLowerCase() === 'es-es' && normalize(v.name || '').includes(p));
             if (hit) return hit;
         }
         return pool.find(v => (v.lang || '').toLowerCase() === 'es-es') || pool[0];
-    }
+    },
+    female() { return TTS.pickVoice('female'); },   // 教学/题目默认用女声
+    male()   { return TTS.pickVoice('male'); },     // 对话里的男角色用男声
 };
 TTS.refreshVoices();
 if (TTS.available()) {
-    try { window.speechSynthesis.onvoiceschanged = () => { TTS.refreshVoices(); updateTtsVoiceLabel(); }; } catch(e) {}
+    try {
+        window.speechSynthesis.onvoiceschanged = () => {
+            TTS.refreshVoices();
+            updateTtsVoiceLabel();
+            // 语音列表终于加载好了：把排队等着的朗读放出来
+            if (TTS.pendingSpeak) {
+                if (TTS.pendingTimeout) clearTimeout(TTS.pendingTimeout);
+                TTS.pendingTimeout = null;
+                const queued = TTS.pendingSpeak;
+                TTS.pendingSpeak = null;
+                if (queued) speak(queued.text, queued.o);
+            }
+        };
+    } catch(e) {}
 }
 
 function speak(text, opts) {
     const o = opts || {};
     if (!text || !TTS.available()) { if (o.onEnd) o.onEnd(); return false; }
     try {
+        TTS.refreshVoices();
+        if (TTS.voices.length === 0) {
+            // iOS 的语音列表异步加载：还没加载好时先排队，等 voiceschanged 或超时后再读。
+            // 绝不直接拿系统默认（中文）声音读西语。
+            if (TTS.pendingTimeout) clearTimeout(TTS.pendingTimeout);
+            TTS.pendingSpeak = { text, o };
+            TTS.pendingTimeout = setTimeout(() => {
+                TTS.pendingTimeout = null;
+                const queued = TTS.pendingSpeak;
+                TTS.pendingSpeak = null;
+                if (queued && TTS.voices.length > 0) speak(queued.text, queued.o);
+                else if (queued && queued.o.onEnd) queued.o.onEnd();
+            }, 2500);
+            return false;
+        }
         const synth = window.speechSynthesis;
-        // 清掉旧朗读防连点堆积；链式朗读的续句传 noCancel，避免把自己打断
-        if (!o.noCancel) { synth.cancel(); TTS.token++; }
-        const u = new window.SpeechSynthesisUtterance(text);
-        u.lang = 'es-ES';
-        const v = TTS.pickVoice();
-        if (v) u.voice = v;
-        u.rate = (o.rate !== undefined) ? o.rate : TTS.rate;
-        if (o.onEnd) u.onend = o.onEnd;
-        synth.speak(u);
+        const doSpeak = () => {
+            const u = new window.SpeechSynthesisUtterance(text);
+            u.lang = 'es-ES';
+            const v = o.voice || TTS.female();   // 教学/题目默认女声；对话等场景显式传男声
+            if (!v) { if (o.onEnd) o.onEnd(); return; }   // 没有西语语音就静默放弃，不用默认声音
+            u.voice = v;
+            u.rate = (o.rate !== undefined) ? o.rate : TTS.rate;
+            // Siri 增强音（Paulina/Diego）在过慢语速下会有电流声/卡顿：语速设下限
+            const vName = normalize(v.name || '');
+            if (vName.startsWith('paulina') || vName.startsWith('diego')) {
+                u.rate = Math.max(u.rate, 0.8);
+            }
+            if (o.onEnd) u.onend = o.onEnd;
+            synth.speak(u);
+        };
+        // 清掉旧朗读防连点堆积；链式朗读的续句传 noCancel，避免把自己打断。
+        // cancel 后立刻 speak 在 iOS 上会带电流爆音，垫 60ms 再开口。
+        if (!o.noCancel) {
+            synth.cancel();
+            TTS.token++;
+            setTimeout(doSpeak, 60);
+        } else {
+            doSpeak();
+        }
         return true;
     } catch(e) {
         if (o.onEnd) o.onEnd();
@@ -2269,7 +2618,7 @@ function updateTypePrefsBtn() {
 }
 
 function toggleTtsRate() {
-    TTS.rate = TTS.rate === 0.6 ? 1.0 : 0.6;
+    TTS.rate = TTS.rate === 0.6 ? 0.9 : 0.6;
     saveData('ttsRate', TTS.rate === 0.6 ? 'slow' : 'normal');
     updateTtsRateButtons();
 }
@@ -2283,7 +2632,7 @@ function updateTtsRateButtons() {
     if (btn3) btn3.textContent = label;
 }
 
-// 显示当前用哪个西语语音；找不到就亮出「朗读会变中文」的安装提示
+// 显示当前用哪两个西语语音；找不到就亮出「朗读会变中文」的安装提示
 function updateTtsVoiceLabel() {
     const el = document.getElementById('ttsVoiceName');
     const hint = document.getElementById('ttsVoiceHint');
@@ -2293,14 +2642,194 @@ function updateTtsVoiceLabel() {
         if (hint) hint.classList.remove('hidden');
         return;
     }
-    const v = TTS.pickVoice();
-    if (v) {
-        el.textContent = `🗣 西语语音：${v.name}`;
-        if (hint) hint.classList.add('hidden');
-    } else {
+    const f = TTS.female();
+    const m = TTS.male();
+    if (!f) {
         el.textContent = '⚠️ 未找到西语语音，朗读会走系统默认（听起来像中文）';
         if (hint) hint.classList.remove('hidden');
+    } else {
+        el.textContent = `🗣 西语语音：教学女声 ${f.name}${m && m.name !== f.name ? '　·　对话男声 ' + m.name : ''}`;
+        if (hint) hint.classList.add('hidden');
     }
+}
+
+// ==================== 离线词典 ====================
+// 词库在 dict-data.js（DICT_DATA / DICT_FORMS_DATA）；20 个核心动词的变形从
+// VERBS_DATA 运行时生成，与词库零重复、永不失同步。索引懒加载，不阻塞进站。
+const DICT = (typeof DICT_DATA !== 'undefined' && Array.isArray(DICT_DATA)) ? DICT_DATA : [];
+const DICT_FORMS = (typeof DICT_FORMS_DATA !== 'undefined' && DICT_FORMS_DATA) ? DICT_FORMS_DATA : {};
+
+let dictIndex = null;      // Map(normalize -> entry)，w 里逗号拆分的每个部分都建索引
+let dictFormIndex = null;  // Map(normalize -> 原形)
+
+function ensureDictIndex() {
+    if (dictIndex) return;
+    dictIndex = new Map();
+    DICT.forEach(e => {
+        String(e.w || '').split(/,\s*/).forEach(p => {
+            const n = normalize(p);
+            if (n && !dictIndex.has(n)) dictIndex.set(n, e);
+        });
+    });
+    dictFormIndex = new Map();
+    VERBS.forEach(v => {
+        ['present', 'preterite', 'subjunctive'].forEach(t => {
+            ['yo', 'tu', 'el', 'nosotros', 'vosotros', 'ellos'].forEach(p => {
+                const f = v.forms[t] && v.forms[t][p];
+                if (f) dictFormIndex.set(normalize(f), v.inf);
+            });
+        });
+        const im = v.forms.imperativoTu;
+        if (im) {
+            if (im.tu) dictFormIndex.set(normalize(im.tu), v.inf);
+            if (im.tuNeg) dictFormIndex.set(normalize(im.tuNeg.replace(/^no\s+/, '')), v.inf);
+        }
+    });
+    Object.keys(DICT_FORMS).forEach(k => {
+        const n = normalize(k);
+        if (n && !dictFormIndex.has(n)) dictFormIndex.set(n, DICT_FORMS[k]);
+    });
+}
+
+// 查一个词：词条精确命中 > 变形 → 原形 > 复数兜底（去尾 s/es，限名词/形容词等）
+function resolveWord(raw) {
+    ensureDictIndex();
+    const norm = normalize(raw);
+    if (!norm) return null;
+    if (dictIndex.has(norm)) {
+        const r = { entry: dictIndex.get(norm), norm };
+        if (dictFormIndex.has(norm)) r.formOf = dictFormIndex.get(norm);
+        return r;
+    }
+    if (dictFormIndex.has(norm)) {
+        const inf = dictFormIndex.get(norm);
+        return { entry: dictIndex.get(normalize(inf)) || null, formOf: inf, norm };
+    }
+    for (const trim of [1, 2]) {
+        if (norm.length >= 3 + trim && norm.endsWith('s')) {
+            const base = norm.slice(0, norm.length - trim);
+            const hit = dictIndex.get(base);
+            if (hit && /^(m|f|adj|art|pron)/.test(hit.pos)) {
+                return { entry: hit, norm, plural: true };
+            }
+        }
+    }
+    return null;
+}
+
+// 词典页搜索：精确/变形 → 前缀 → 包含，上限 30 条
+function searchDict(query) {
+    ensureDictIndex();
+    const q = normalize(query);
+    if (!q || q.length < 2) return [];
+    const results = [];
+    const exact = resolveWord(q);
+    if (exact) results.push(exact);
+    const seen = new Set(results.map(r => r.norm));
+    for (const [n, entry] of dictIndex) {
+        if (results.length >= 30) break;
+        if (seen.has(n)) continue;
+        if (n.startsWith(q)) { results.push({ entry, norm: n }); seen.add(n); }
+    }
+    for (const [n, entry] of dictIndex) {
+        if (results.length >= 30) break;
+        if (seen.has(n)) continue;
+        if (n.includes(q) && !n.startsWith(q)) { results.push({ entry, norm: n }); seen.add(n); }
+    }
+    return results;
+}
+
+function escapeHtml(s) {
+    return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+// 词条卡（词典页与点词浮层共用）：词 + 词性 + 释义 + 点读 + 变位表
+function dictEntryHtml(r) {
+    const e = r.entry;
+    const head = e ? String(e.w).split(',')[0] : '—';
+    let html = `<div class="lang-label" style="color:var(--primary);">${escapeHtml(e.w)} <button class="speak-btn" onclick="speak('${head.replace(/'/g, "\\'")}')">🔊</button> <span style="font-size:0.75em; color:#999; font-weight:normal;">${escapeHtml(e.pos)}</span></div>`;
+    if (r.formOf && e && normalize(head) !== normalize(r.formOf)) {
+        html += `<div style="font-size:0.8em; color:var(--accent); margin:2px 0;">→ ${escapeHtml(r.formOf)} 的变形</div>`;
+    }
+    if (r.plural) {
+        html += `<div style="font-size:0.8em; color:#888; margin:2px 0;">（可能是复数形式）</div>`;
+    }
+    if (e && e.zh && e.zh.length) {
+        html += e.zh.map(z => `<div>· ${escapeHtml(z)}</div>`).join('');
+    }
+    // 变位表：e.conj 指向 VERBS_DATA，或词头本身就是 20 个动词之一
+    let inf = e && e.conj;
+    if (!inf && e) {
+        const headNorm = normalize(head);
+        const hit = VERBS.find(v => normalize(v.inf) === headNorm);
+        if (hit) inf = hit.inf;
+    }
+    const verb = inf ? VERBS.find(v => v.inf === inf) : null;
+    if (verb) {
+        const tenses = [['present', '现在时'], ['preterite', '简单过去时'], ['subjunctive', '虚拟式'], ['imperativoTu', '命令式（tú）']];
+        const rows = tenses.map(([t, label]) => {
+            const forms = t === 'imperativoTu'
+                ? `${verb.forms.imperativoTu.tu} / ${verb.forms.imperativoTu.tuNeg}`
+                : ['yo', 'tu', 'el', 'nosotros', 'vosotros', 'ellos'].map(p => verb.forms[t][p]).join(' · ');
+            return `<tr><td style="color:#888; white-space:nowrap;">${label}</td><td>${forms} <button class="speak-btn" onclick="speak('${forms.split(' / ')[0].split(' · ')[0].replace(/'/g, "\\'")}')">🔊</button></td></tr>`;
+        }).join('');
+        html += `<details style="margin-top:8px;"><summary style="cursor:pointer; color:var(--accent); font-size:0.9em;">📋 变位表（${escapeHtml(verb.inf)}）</summary><table style="margin-top:6px;">${rows}</table></details>`;
+    }
+    return `<div class="card" style="border-left-color:var(--blue); margin-bottom:10px; padding:12px 16px;">${html}</div>`;
+}
+
+function renderDictSearch(query) {
+    const box = document.getElementById('dictResults');
+    const q = String(query || '').trim();
+    if (!q) { renderDictHistory(); box.innerHTML = ''; return; }
+    const results = searchDict(q);
+    if (results.length === 0) {
+        box.innerHTML = `<div class="card" style="padding:20px; text-align:center; color:#888;">😕 词典里还没有「${escapeHtml(q)}」。试试原形，或换个写法（不用打重音符号）。</div>`;
+        return;
+    }
+    box.innerHTML = results.map(r => dictEntryHtml(r)).join('');
+}
+
+// ---- 查词历史 ----
+function addDictHistory(word) {
+    const q = String(word || '').trim();
+    if (!q) return;
+    let hist = loadData('dictHistory', []);
+    hist = [q, ...hist.filter(x => normalize(x) !== normalize(q))].slice(0, 50);
+    saveData('dictHistory', hist);
+    renderDictHistory();
+}
+function renderDictHistory() {
+    const box = document.getElementById('dictHistory');
+    if (!box) return;
+    const hist = loadData('dictHistory', []);
+    if (hist.length === 0) { box.innerHTML = ''; return; }
+    box.innerHTML = '<span style="font-size:0.8em; color:#888;">最近查过：</span> ' +
+        hist.slice(0, 8).map(w => `<button class="btn-secondary" style="font-size:0.8em; padding:3px 10px; margin:2px;" onclick="dictSearchFromHistory('${w.replace(/'/g, "\\'")}')">${escapeHtml(w)}</button>`).join('');
+}
+function dictSearchFromHistory(w) {
+    const input = document.getElementById('dictInput');
+    if (input) input.value = w;
+    renderDictSearch(w);
+}
+
+// ---- 学习中点词浮层 ----
+function openDictLookup(word) {
+    const overlay = document.getElementById('dictOverlay');
+    const box = document.getElementById('dictOverlayCard');
+    if (!overlay || !box) return;
+    addDictHistory(word);
+    const r = resolveWord(word);
+    if (!r || !r.entry) {
+        box.innerHTML = `<div class="lang-label" style="color:var(--primary);">${escapeHtml(String(word))}</div><div style="color:#888; margin:8px 0;">😕 词典里还没有这个词</div><div class="buttons"><button class="btn-secondary" onclick="closeDictLookup()">关闭</button></div>`;
+    } else {
+        box.innerHTML = dictEntryHtml(r) + `<div class="buttons"><button class="btn-secondary" onclick="closeDictLookup()">关闭</button></div>`;
+    }
+    overlay.classList.remove('hidden');
+}
+function closeDictLookup() {
+    const overlay = document.getElementById('dictOverlay');
+    if (overlay) overlay.classList.add('hidden');
 }
 
 // ==================== 精听模式（TTS 驱动） ====================
@@ -2312,6 +2841,7 @@ function dictPick(sentence) {
         return;
     }
     dictSentence = sentence;
+    updateContextBar();   // 精听材料换了，悬浮条同步显示来源课
     document.getElementById('dictationZh').textContent = sentence.chinese;
     document.getElementById('dictationText').textContent = sentence.spanish;
     document.getElementById('dictationText').classList.add('blurred');
@@ -2322,9 +2852,11 @@ function dictPick(sentence) {
 }
 function dictUseLesson() {
     if (!currentLesson || !currentLesson.sentences || currentLesson.sentences.length === 0) { dictRandom(); return; }
-    const unlearned = currentLesson.sentences.filter(s => !((cards[cardId(s)] || {}).reps > 0));
-    const pool = unlearned.length > 0 ? unlearned : currentLesson.sentences;
-    dictPick(pool[Math.floor(Math.random() * pool.length)]);
+    // 走 allSentences() 拿带 lessonId 的句对象，悬浮条才能显示来源课
+    const pool = allSentences().filter(s => s.lessonId === currentLesson.id);
+    const unlearned = pool.filter(s => !((cards[cardId(s)] || {}).reps > 0));
+    const pick = unlearned.length > 0 ? unlearned : pool;
+    dictPick(pick[Math.floor(Math.random() * pick.length)]);
 }
 function dictRandom() {
     const all = allSentences();
@@ -2446,17 +2978,20 @@ function renderStats() {
     if (sessionPlan && sessionPlan.date === today) {
         const done = Math.min(sessionCompleted, sessionPlan.total);
         const finished = done >= sessionPlan.total;
+        const lvInfo = levelFromScore(score);
         body.innerHTML = `
             打卡：${(td && (td.learned || td.reviewed)) ? '✅ 今天已来过' : '— 还没打卡'}　·
+            🏆 ${lvInfo.label}（Lv.${lvInfo.lv}）　·
             电量 ${sessionPlan.energy}%　·
             计划 ${done}/${sessionPlan.total} 句
             ${finished ? '　🎉 <b>计划已完成！</b>' : ''}
             ${sessionPlan.deferred > 0 ? `<br><span style="color:#888; font-size:0.85em;">另有 ${sessionPlan.deferred} 句到期复习顺延中（没消失，改天见）</span>` : ''}
         `;
     } else {
+        const lvInfo = levelFromScore(score);
         body.innerHTML = (td && (td.learned || td.reviewed))
-            ? '✅ 今天已来过。没看到计划？去学习页点「📋 重新规划今天」。'
-            : '— 今天还没开始。去学习页答三道题，自动帮你排今天的量。';
+            ? `✅ 今天已来过。🏆 ${lvInfo.label}（Lv.${lvInfo.lv}）　没看到计划？去学习页点「📋 重新规划今天」。`
+            : `— 今天还没开始。🏆 ${lvInfo.label}（Lv.${lvInfo.lv}）　去学习页答三道题，自动帮你排今天的量。`;
     }
 
     // ---- 记忆库概览 ----
@@ -2617,5 +3152,10 @@ if ('serviceWorker' in navigator && location.protocol === 'https:') {
     navigator.serviceWorker.register('sw.js').catch(function(){});
 }
 </script>
+
+<!-- 学习中点词的词典浮层 -->
+<div class="modal-overlay hidden" id="dictOverlay" style="align-items:flex-start; padding-top:60px;" onclick="if(event.target===this) closeDictLookup()">
+    <div class="modal" id="dictOverlayCard" style="max-width:520px;"></div>
+</div>
 </body>
 </html>

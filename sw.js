@@ -1,10 +1,11 @@
 // 西语每日练 · 离线缓存
 // 每次发版只需把 v1 改成 v2、v3…… 用户端会自动下载新缓存并删除旧缓存。
-const CACHE_NAME = 'xiyu-daily-v5';
+const CACHE_NAME = 'xiyu-daily-v11';
 const ASSETS = [
     './',
     './index.html',
     './course-data.js',
+    './dict-data.js',
     './manifest.webmanifest',
     './icons/icon-192.png',
     './icons/icon-512.png',
