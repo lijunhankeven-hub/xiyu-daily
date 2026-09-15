@@ -712,10 +712,11 @@
         </div>
         <div class="tb-meta" style="margin-top:8px;" id="ttsVoiceName"></div>
         <div class="tip-box hidden" style="margin-top:12px;" id="ttsVoiceHint">
-            <b>⚠️ 设备上没找到西语语音</b>，所以朗读走了系统默认声音（听起来像中文）。安装方法：<br>
-            · iPhone：设置 → 辅助功能 → 朗读内容 → 声音 → 西班牙语 → 选 Mónica 或 Paulina<br>
-            · Mac：系统设置 → 辅助功能 → 朗读内容 → 系统声音 → 管理声音 → 下载西语声音<br>
-            装好后刷新页面即可。
+            <b>⚠️ 西语语音还没下载（联网音）</b>——慢速语速会失效。下载方法：<br>
+            · iPhone：设置 → 辅助功能 → 朗读内容 → 声音 → 西班牙语 → 点开声音列表，
+              带「内存大小」的条目就是未下载的（Siri 1 / Siri 2），点它下载<br>
+            · Mac：系统设置 → 辅助功能 → 朗读内容 → 系统声音 → 管理声音 → 下载<br>
+            下载后刷新页面，慢速语速才会真正生效。
         </div>
         <div class="card chinese" style="margin-top:10px;">
             <div class="lang-label">🇨🇳 中文提示</div>
@@ -846,7 +847,7 @@
 const APP_VERSION = '1.0.0';
 // RELEASE_VERSION = 发布版本：每次发版（内容版/功能内容版/结构版）都 +1，显示在页面底部，
 // 用来确认自己装的是哪个版本。内容版不清数据，所以它和 APP_VERSION 是两条线。
-const RELEASE_VERSION = '1.6.3';
+const RELEASE_VERSION = '1.6.6';
 
 // 存档拆成两套：
 //   sp_v<版本>_*  会话进度、打卡天数、今日计数 —— 换版本自动清空
@@ -2517,22 +2518,34 @@ const TTS = {
         TTS.refreshVoices();
         const es = TTS.voices.filter(v => (v.lang || '').toLowerCase().startsWith('es'));
         if (es.length === 0) return null;
-        // 1) 硬指定：女声只用 Paulina、男声只用 Diego（用户拍板，不接受其他）。
-        //    不区分本地/联网——Paulina 常以增强音形式出现（localService=false），照用。
-        const target = gender === 'male' ? 'diego' : 'paulina';
-        const exact = es.find(v => normalize(v.name || '').startsWith(target));
-        if (exact) return exact;
-        // 2) 设备上没有这两个声音时（如 Chrome 只有 Google 语音）才退回启发式
-        const local = es.filter(v => v.localService !== false);
-        const pool = local.length > 0 ? local : es;
-        const prefs = gender === 'male'
-            ? ['diego', 'jorge', 'javier', 'sergio', 'carlos']
-            : ['paulina', 'monica', 'marisol', 'sara', 'lucia'];
-        for (const p of prefs) {
-            const hit = pool.find(v => (v.lang || '').toLowerCase() === 'es-es' && normalize(v.name || '').includes(p));
+        const isNetwork = v => v.localService === false;
+        // 1) 硬指定（分平台，用户拍板）：
+        //    · 手机：固定 Siri 1（男）/ Siri 2（女），完全不套 Paulina/Diego 规则
+        //    · 桌面：女声只用 Paulina、男声只用 Diego
+        //    优先本地版（联网音在 iOS 上会无视语速设置）；没有本地版才用联网版。
+        const exactTarget = isMobileUA()
+            ? (gender === 'male' ? 'siri1' : 'siri2')
+            : (gender === 'male' ? 'diego' : 'paulina');
+        const hits = es.filter(v => stripSpaces(normalize(v.name || '')).startsWith(exactTarget));
+        if (hits.length > 0) {
+            return hits.find(v => !isNetwork(v)) || hits[0];
+        }
+        // 2) 设备上没有指定声音时（iPhone 没有 Diego），按性别名在所有西语
+        //    变体里找（es-ES / es-MX / es-US 都行），并排除异性名
+        const femaleNames = ['paulina', 'monica', 'marisol', 'sara', 'lucia', 'maria', 'rosa', 'elena'];
+        const maleNames = ['diego', 'jorge', 'javier', 'sergio', 'carlos', 'miguel', 'juan', 'pedro'];
+        const good = gender === 'male' ? maleNames : femaleNames;
+        const bad = gender === 'male' ? femaleNames : maleNames;
+        for (const p of good) {
+            const hit = es.find(v => normalize(v.name || '').includes(p) && !bad.some(b => normalize(v.name || '').includes(b)));
             if (hit) return hit;
         }
-        return pool.find(v => (v.lang || '').toLowerCase() === 'es-es') || pool[0];
+        // 3) 男声实在没有：返回 null（调用方回退女声），绝不拿女名声音冒充男声
+        if (gender === 'male') return null;
+        // 女声最后兜底：优先本地西语声音
+        const local = es.filter(v => !isNetwork(v));
+        return (local.length > 0 ? local : es).find(v => (v.lang || '').toLowerCase() === 'es-es')
+            || (local.length > 0 ? local : es)[0];
     },
     female() { return TTS.pickVoice('female'); },   // 教学/题目默认用女声
     male()   { return TTS.pickVoice('male'); },     // 对话里的男角色用男声
@@ -2553,6 +2566,62 @@ if (TTS.available()) {
             }
         };
     } catch(e) {}
+}
+
+// Siri 增强音（Paulina/Diego/Siri 1/Siri 2）在过慢语速下时间拉伸会有电流声：
+// 语速设下限。0.72 与正常 0.9 拉开明显差距，又不进入卡顿区。抽成纯函数方便测试。
+function ttsRateFor(voiceName, rate) {
+    const vn = normalize(voiceName || '');
+    if (vn.startsWith('paulina') || vn.startsWith('diego') || vn.startsWith('siri')) {
+        return Math.max(rate, 0.72);
+    }
+    return rate;
+}
+
+// 去空格版名字：匹配 "Siri 1" / "Siri1" / "Siri 1 (Enhanced)" 各种写法
+function stripSpaces(s) {
+    return String(s || '').replace(/\s+/g, '');
+}
+
+// 手机还是桌面：手机版固定 Siri 1（男）/ Siri 2（女），桌面版走 Paulina/Diego
+function isMobileUA() {
+    const ua = (typeof navigator !== 'undefined' && navigator.userAgent) ? navigator.userAgent : '';
+    return /iPhone|iPad|Android|Mobile/i.test(ua);
+}
+
+// 慢速分句：按标点把句子拆成小段（标点跟在前段后），联网音无视语速，
+// 用「分段 + 段间停顿」来模拟慢速。抽成纯函数方便测试。
+function splitSlowChunks(text) {
+    // ¿ ¡ 是句首反问号，不属于结尾分隔符——让它们留在后段开头
+    const parts = String(text || '').split(/([,;.!?]+)/);
+    const chunks = [];
+    parts.forEach(p => {
+        if (!p.trim()) return;   // 跳过空串和纯空格（' ' 是 truthy，必须 trim 再判）
+        if (/^[,;.!?¿¡]+$/.test(p) && chunks.length > 0) chunks[chunks.length - 1] += p;
+        else chunks.push(p.trim());
+    });
+    return chunks.filter(Boolean);
+}
+
+// 联网音慢速朗读：逐段读，段间停 300ms
+function speakChunked(text, o, v) {
+    const chunks = splitSlowChunks(text);
+    const token = TTS.token;   // 链式期间被用户点了别的朗读（token 变了）就停止
+    let i = 0;
+    const next = () => {
+        if (i >= chunks.length) { if (o.onEnd) o.onEnd(); return; }
+        if (i > 0 && TTS.token !== token) { if (o.onEnd) o.onEnd(); return; }
+        try {
+            const synth = window.speechSynthesis;
+            const u = new window.SpeechSynthesisUtterance(chunks[i]);
+            u.lang = 'es-ES';
+            u.voice = v;
+            u.rate = 1.0;   // 联网音无视 rate，慢速感全部来自段间停顿
+            u.onend = () => { i++; setTimeout(next, 300); };
+            synth.speak(u);
+        } catch(e) { if (o.onEnd) o.onEnd(); }
+    };
+    next();
 }
 
 function speak(text, opts) {
@@ -2576,17 +2645,18 @@ function speak(text, opts) {
         }
         const synth = window.speechSynthesis;
         const doSpeak = () => {
-            const u = new window.SpeechSynthesisUtterance(text);
-            u.lang = 'es-ES';
             const v = o.voice || TTS.female();   // 教学/题目默认女声；对话等场景显式传男声
             if (!v) { if (o.onEnd) o.onEnd(); return; }   // 没有西语语音就静默放弃，不用默认声音
-            u.voice = v;
-            u.rate = (o.rate !== undefined) ? o.rate : TTS.rate;
-            // Siri 增强音（Paulina/Diego）在过慢语速下会有电流声/卡顿：语速设下限
-            const vName = normalize(v.name || '');
-            if (vName.startsWith('paulina') || vName.startsWith('diego')) {
-                u.rate = Math.max(u.rate, 0.8);
+            const rate = ttsRateFor(v.name, (o.rate !== undefined) ? o.rate : TTS.rate);
+            // 联网音无视语速：慢速模式下改用「分句 + 停顿」模拟（单段词不受影响）
+            if (rate < 0.85 && v.localService === false && splitSlowChunks(text).length > 1) {
+                speakChunked(text, o, v);
+                return;
             }
+            const u = new window.SpeechSynthesisUtterance(text);
+            u.lang = 'es-ES';
+            u.voice = v;
+            u.rate = rate;
             if (o.onEnd) u.onend = o.onEnd;
             synth.speak(u);
         };
@@ -2648,8 +2718,12 @@ function updateTtsVoiceLabel() {
         el.textContent = '⚠️ 未找到西语语音，朗读会走系统默认（听起来像中文）';
         if (hint) hint.classList.remove('hidden');
     } else {
-        el.textContent = `🗣 西语语音：教学女声 ${f.name}${m && m.name !== f.name ? '　·　对话男声 ' + m.name : ''}`;
-        if (hint) hint.classList.add('hidden');
+        const fNet = f.localService === false;
+        let text = `🗣 西语语音：教学女声 ${f.name}${fNet ? '（未下载的联网音：慢速失效，见下方提示）' : ''}`;
+        if (m && m.name !== f.name) text += `　·　对话男声 ${m.name}`;
+        else if (!m) text += '　·　对话无男声（用女声代读）';
+        el.textContent = text;
+        if (hint) { if (fNet) hint.classList.remove('hidden'); else hint.classList.add('hidden'); }
     }
 }
 
