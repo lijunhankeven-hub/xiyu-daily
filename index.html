@@ -718,6 +718,14 @@
             · Mac：系统设置 → 辅助功能 → 朗读内容 → 系统声音 → 管理声音 → 下载<br>
             下载后刷新页面，慢速语速才会真正生效。
         </div>
+        <details style="margin-top:10px; font-size:0.85em;">
+            <summary style="cursor:pointer; color:#2c5282;">🔍 本设备全部语音（调试：声音不对就复制下面列表给 Claude）</summary>
+            <div id="voiceDebugList" style="margin-top:6px; white-space:pre-wrap; font-family:monospace; font-size:0.8em; background:#f4f9fe; padding:8px; border-radius:8px; max-height:220px; overflow:auto;"></div>
+            <div class="buttons" style="margin-top:6px;">
+                <button class="btn-secondary" style="font-size:0.85em;" onclick="copyVoiceDebug()">📋 复制语音列表</button>
+                <button class="btn-secondary" style="font-size:0.85em;" onclick="renderVoiceDebug()">🔄 刷新</button>
+            </div>
+        </details>
         <div class="card chinese" style="margin-top:10px;">
             <div class="lang-label">🇨🇳 中文提示</div>
             <div class="text" id="dictationZh">（点击上方按钮选一句）</div>
@@ -847,7 +855,7 @@
 const APP_VERSION = '1.0.0';
 // RELEASE_VERSION = 发布版本：每次发版（内容版/功能内容版/结构版）都 +1，显示在页面底部，
 // 用来确认自己装的是哪个版本。内容版不清数据，所以它和 APP_VERSION 是两条线。
-const RELEASE_VERSION = '1.6.6';
+const RELEASE_VERSION = '1.6.7';
 
 // 存档拆成两套：
 //   sp_v<版本>_*  会话进度、打卡天数、今日计数 —— 换版本自动清空
@@ -1428,7 +1436,7 @@ function init() {
 
     updateTtsRateButtons();
     updateTtsVoiceLabel();
-    setTimeout(updateTtsVoiceLabel, 800);   // iOS 的语音列表是异步加载的，稍后再补一次
+    setTimeout(() => { updateTtsVoiceLabel(); renderVoiceDebug(); }, 800);   // iOS 的语音列表是异步加载的，稍后再补一次
     updateNextBtn();
     updateTypePrefsBtn();
     const cvc = document.getElementById('conjVerbCount');
@@ -2523,12 +2531,28 @@ const TTS = {
         //    · 手机：固定 Siri 1（男）/ Siri 2（女），完全不套 Paulina/Diego 规则
         //    · 桌面：女声只用 Paulina、男声只用 Diego
         //    优先本地版（联网音在 iOS 上会无视语速设置）；没有本地版才用联网版。
-        const exactTarget = isMobileUA()
-            ? (gender === 'male' ? 'siri1' : 'siri2')
-            : (gender === 'male' ? 'diego' : 'paulina');
-        const hits = es.filter(v => stripSpaces(normalize(v.name || '')).startsWith(exactTarget));
+        let hits = [];
+        if (isMobileUA()) {
+            // 手机：iOS 26 西班牙语 Siri 音 = 2 种口音 ×（Voz 1 男 / Voz 2 女）。
+            // 名字可能以 Siri / Siri Voice / Voice / Voz 各种写法出现，逐一尝试；
+            // 多个命中时优先本地版、再优先西班牙口音（es-ES，教材是西班牙西语）。
+            const targets = gender === 'male'
+                ? ['siri1', 'sirivoice1', 'voice1', 'voz1']
+                : ['siri2', 'sirivoice2', 'voice2', 'voz2'];
+            for (const t of targets) {
+                hits = es.filter(v => stripSpaces(normalize(v.name || '')).startsWith(t));
+                if (hits.length > 0) break;
+            }
+        } else {
+            const target = gender === 'male' ? 'diego' : 'paulina';
+            hits = es.filter(v => stripSpaces(normalize(v.name || '')).startsWith(target));
+        }
         if (hits.length > 0) {
-            return hits.find(v => !isNetwork(v)) || hits[0];
+            const esES = v => (v.lang || '').toLowerCase() === 'es-es';
+            return hits.find(v => !isNetwork(v) && esES(v))
+                || hits.find(v => !isNetwork(v))
+                || hits.find(esES)
+                || hits[0];
         }
         // 2) 设备上没有指定声音时（iPhone 没有 Diego），按性别名在所有西语
         //    变体里找（es-ES / es-MX / es-US 都行），并排除异性名
@@ -2581,6 +2605,35 @@ function ttsRateFor(voiceName, rate) {
 // 去空格版名字：匹配 "Siri 1" / "Siri1" / "Siri 1 (Enhanced)" 各种写法
 function stripSpaces(s) {
     return String(s || '').replace(/\s+/g, '');
+}
+
+// ---- 语音调试面板：列出本设备全部语音，复制给 Claude 精确锁定 ----
+function renderVoiceDebug() {
+    const box = document.getElementById('voiceDebugList');
+    if (!box) return;
+    if (!TTS.available()) { box.textContent = '此浏览器不支持语音合成'; return; }
+    TTS.refreshVoices();
+    const f = TTS.female();
+    const m = TTS.male();
+    const lines = TTS.voices.map(v => {
+        const picked = (f && f.name === v.name) ? '  ← 教学女声' : (m && m.name === v.name) ? '  ← 对话男声' : '';
+        return `${v.name}\t${v.lang}\t${v.localService === false ? '联网' : '本地'}\t${v.voiceURI || ''}${picked}`;
+    });
+    box.textContent = lines.join('\n') || '（列表为空：语音还在加载，点「🔄 刷新」再试）';
+}
+function copyVoiceDebug() {
+    renderVoiceDebug();
+    const box = document.getElementById('voiceDebugList');
+    if (!box || !box.textContent || box.textContent.indexOf('（列表为空') === 0) {
+        alert('语音列表还是空的，点「🔄 刷新」后再复制');
+        return;
+    }
+    try {
+        navigator.clipboard.writeText('【西语每日练 · 语音调试】\nUA: ' + (navigator.userAgent || '') + '\n' + box.textContent);
+        alert('已复制！把它粘贴发给 Claude 即可。');
+    } catch(e) {
+        alert('复制失败，请截图这一块发给我。');
+    }
 }
 
 // 手机还是桌面：手机版固定 Siri 1（男）/ Siri 2（女），桌面版走 Paulina/Diego
