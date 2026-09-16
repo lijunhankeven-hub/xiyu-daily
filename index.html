@@ -2,7 +2,7 @@
 <html lang="zh">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
     <meta name="theme-color" content="#2b6cb0">
     <link rel="manifest" href="manifest.webmanifest">
     <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
@@ -27,6 +27,15 @@
             padding: 20px;
             /* 底部留白：iOS 工具条安全区 + 悬浮经验条的高度 */
             padding-bottom: calc(44px + env(safe-area-inset-bottom));
+        }
+        /* 禁止页面缩放（配合 viewport 兜底：手机双指/双击、电脑快捷键缩放都不允许），滚动保留 */
+        html, body { touch-action: pan-x pan-y; }
+        /* 手机端隐藏滚动条：右侧竖条和 nav 的横条都不显示，滚动照常 */
+        @media (max-width: 820px) {
+            html { scrollbar-width: none; -ms-overflow-style: none; }
+            html::-webkit-scrollbar { display: none; width: 0; height: 0; }
+            body::-webkit-scrollbar { display: none; width: 0; height: 0; }
+            nav::-webkit-scrollbar { display: none; width: 0; height: 0; }
         }
         .app {
             max-width: 800px;
@@ -313,9 +322,26 @@
         .q-opt.correct-opt { border-color: var(--green); background: #e8f8f0; }
         .q-tip { font-size: 0.8em; color: #999; margin: 8px 0 4px; }
         button:disabled { opacity: 0.45; cursor: not-allowed; }
-        /* 答案卡里可点词查词典 */
-        .wlink { cursor: pointer; border-bottom: 1px dotted #9bb8d8; }
+        /* 答案卡里可点词查词典（长按出富弹窗，禁掉系统自带的长按菜单） */
+        .wlink { cursor: pointer; border-bottom: 1px dotted #9bb8d8;
+                 -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
         .wlink:hover { background: #eaf4fd; }
+        /* 错因诊断 diff 高亮 */
+        .d-wrong { background: #ffd6d6; color: #c0392b; border-radius: 3px; padding: 0 2px; }
+        .d-extra { background: #fdf0c2; text-decoration: line-through; border-radius: 3px; padding: 0 2px; }
+        .d-miss  { border-bottom: 2px solid #e74c3c; }
+        .d-gain  { color: #27ae60; font-weight: bold; }
+        .d-tag   { display: inline-block; background: #f39c12; color: #fff; font-size: 0.75em;
+                   border-radius: 999px; padding: 1px 10px; margin: 0 3px; }
+        .d-line  { margin-top: 4px; font-size: 0.9em; color: #555; }
+        /* 富词条：义项 / 词形归属 / 用法提示 */
+        .sense-zh { margin: 6px 0 2px; font-size: 0.9em; color: #333; }
+        .sense-num { color: var(--accent); font-weight: bold; margin-right: 2px; }
+        .sense-w  { color: #999; font-size: 0.85em; }
+        .note { background: #fff8e1; border-left: 3px solid #f0b429; border-radius: 6px;
+                padding: 6px 10px; margin: 8px 0 4px; font-size: 0.85em; color: #7a5b00; line-height: 1.6; }
+        #diagnosis, #dictDiagnosis { background: #fff8f0; border-left: 4px solid #f39c12;
+                   border-radius: 8px; padding: 10px 14px; margin-top: 10px; }
         /* 等级悬浮胶囊（左上角） */
         .level-pill {
             position: fixed; top: 10px; left: 10px; z-index: 60;
@@ -587,6 +613,11 @@
             <input type="text" id="dictInput" placeholder="输入西语单词，如：casa / tienes / bonita..." oninput="renderDictSearch(this.value)">
         </div>
         <div id="dictHistory" style="margin:6px 0 10px;"></div>
+        <details style="margin-bottom:10px; font-size:0.9em;">
+            <summary style="cursor:pointer; color:#2c5282;">📒 生词本（<span id="wordbookCount">0</span>）· 查词时点「⭐ 加入生词本」</summary>
+            <div id="wordbookList" style="margin-top:8px; font-size:0.9em; color:#555;"></div>
+            <div style="font-size:0.75em; color:#999; margin-top:6px;">以后可以一键把这些词生成 SRS 记忆卡（开发中）。</div>
+        </details>
         <div id="dictResults"></div>
     </div>
 
@@ -645,6 +676,7 @@
             <button class="btn-primary" onclick="nextQuestion()" id="nextBtn" disabled>➡️ 下一题</button>
         </div>
         <div class="feedback" id="feedback"></div>
+        <div id="diagnosis" class="hidden"></div>
         <div class="settings-row">
             <button class="btn-primary" onclick="replanToday()">📋 重新规划今天</button>
             <button class="btn-secondary" onclick="toggleTypePrefs()" id="typePrefsBtn">🔀 题型：全部</button>
@@ -664,6 +696,33 @@
             <div class="feedback" id="conjStartMsg" style="margin-top:12px;"></div>
         </div>
         <div id="conjPlay" class="hidden">
+            <div id="conjFilters" style="font-size:0.85em; margin-bottom:10px; color:#555; display:flex; flex-wrap:wrap; gap:6px; align-items:center;">
+                <select id="conjSelType" onchange="onConjFilter('type', this.value)">
+                    <option value="all">全部动词</option>
+                    <option value="reg">规则动词</option>
+                    <option value="irr">不规则动词</option>
+                </select>
+                <select id="conjSelTense" onchange="onConjFilter('tense', this.value)">
+                    <option value="all">全部时态</option>
+                    <option value="present">现在时</option>
+                    <option value="preterite">简单过去时</option>
+                    <option value="subjunctive">虚拟式</option>
+                    <option value="imperativoTu">命令式</option>
+                </select>
+                <select id="conjSelPerson" onchange="onConjFilter('person', this.value)">
+                    <option value="all">全部人称</option>
+                    <option value="yo">yo</option>
+                    <option value="tu">tú</option>
+                    <option value="el">él/ella</option>
+                    <option value="nosotros">nosotros</option>
+                    <option value="vosotros">vosotros</option>
+                    <option value="ellos">ellos</option>
+                </select>
+                <select id="conjSelLesson" onchange="onConjFilter('lesson', this.value)">
+                    <option value="all">全部课号</option>
+                </select>
+                <button class="btn-secondary" style="font-size:0.8em; padding:4px 10px;" onclick="resetConjFilters()">🔄 重置</button>
+            </div>
             <div class="card" id="conjCard" style="border-left-color:var(--accent);">
                 <div class="lang-label" style="color:var(--accent);">✍️ 请写出正确的变位</div>
                 <div style="font-size:1.2em; font-weight:bold; margin:8px 0;" id="conjPrompt">—</div>
@@ -671,6 +730,15 @@
             </div>
             <div class="input-area">
                 <input type="text" id="conjInput" placeholder="输入变位形式..." onkeydown="if(event.key==='Enter') checkConjAnswer()">
+                <div style="margin-top:6px; display:flex; gap:4px; flex-wrap:wrap;">
+                    <span style="font-size:0.75em; color:#888; align-self:center;">快捷输入：</span>
+                    <button class="btn-secondary" style="font-size:0.9em; padding:3px 12px;" onclick="insertAccent('á')">á</button>
+                    <button class="btn-secondary" style="font-size:0.9em; padding:3px 12px;" onclick="insertAccent('é')">é</button>
+                    <button class="btn-secondary" style="font-size:0.9em; padding:3px 12px;" onclick="insertAccent('í')">í</button>
+                    <button class="btn-secondary" style="font-size:0.9em; padding:3px 12px;" onclick="insertAccent('ó')">ó</button>
+                    <button class="btn-secondary" style="font-size:0.9em; padding:3px 12px;" onclick="insertAccent('ú')">ú</button>
+                    <button class="btn-secondary" style="font-size:0.9em; padding:3px 12px;" onclick="insertAccent('ñ')">ñ</button>
+                </div>
             </div>
             <div class="buttons">
                 <button class="btn-success" onclick="checkConjAnswer()">✅ 检查</button>
@@ -679,6 +747,7 @@
                 <button class="btn-warning" onclick="endConjRound()">🏁 结束本轮</button>
             </div>
             <div class="feedback" id="conjFeedback"></div>
+            <div id="conjTableArea" class="hidden" style="margin-top:10px;"></div>
             <div class="stats" style="margin-top:12px;">
                 <div class="stat-item"><div class="stat-value" id="conjCorrect">0</div><div class="stat-label">本轮正确</div></div>
                 <div class="stat-item"><div class="stat-value" id="conjWrong">0</div><div class="stat-label">本轮错误</div></div>
@@ -686,8 +755,20 @@
             </div>
             <div class="tip-box" style="margin-top:12px;">
                 <b>📌 说明：</b>严格判分——变位的意义全在词尾，打错一个字母就算错（重音符号、ñ 不要求）。
-                此训练不进 SRS 记忆卡，每次作答都计入打卡。
+                此训练不进 SRS 记忆卡，每次作答都计入打卡。筛选改变后从下一题开始生效。
             </div>
+            <details style="margin-top:10px; font-size:0.9em;">
+                <summary style="cursor:pointer; color:#2c5282;">📕 变位错题本（<span id="conjErrCount">0</span> 题）· 🎯 一键生成 10 题小测</summary>
+                <div class="buttons" style="margin-top:8px;">
+                    <button class="btn-primary" style="font-size:0.85em;" onclick="startConjQuiz()">🎯 生成 10 题小测</button>
+                    <button class="btn-secondary" style="font-size:0.85em;" onclick="clearConjErrors()">🧹 清空错题本</button>
+                </div>
+                <div id="conjErrList" style="margin-top:8px; font-size:0.85em; color:#555;"></div>
+            </details>
+            <details style="margin-top:10px; font-size:0.9em;">
+                <summary style="cursor:pointer; color:#2c5282;">🔥 变位热力图（哪个时态×人称最弱）</summary>
+                <div id="conjHeatmap" style="margin-top:8px;"></div>
+            </details>
         </div>
     </div>
 
@@ -741,6 +822,7 @@
             <button class="btn-secondary" onclick="toggleDictReveal()">👁 显示原文</button>
         </div>
         <div class="feedback" id="dictationFeedback"></div>
+        <div id="dictDiagnosis" class="hidden"></div>
         <div class="card spanish" style="margin-top:10px;">
             <div class="lang-label">🇪🇸 原文（点击显示/隐藏）</div>
             <div class="text blurred" id="dictationText" onclick="toggleDictReveal()">（先选一句再点「显示原文」）</div>
@@ -784,6 +866,11 @@
 
         <h3 style="margin:15px 0 10px; font-size:1em;">🗓️ 未来7天到期预测</h3>
         <div id="forecast" style="display:flex; align-items:flex-end; gap:8px; height:90px; padding:8px; background:#f2f8fd; border-radius:10px;"></div>
+
+        <h3 style="margin:15px 0 10px; font-size:1em;">📉 本周错误 Top 3</h3>
+        <div class="card" style="border-left-color:var(--accent);">
+            <div id="errorTopBody" style="font-size:0.9em; color:#666;">— 这周还没有错误记录，继续保持 —</div>
+        </div>
 
         <h3 style="margin:15px 0 10px; font-size:1em;">💀 顽固题（反复错的句子）</h3>
         <div id="leechList"><p style="color:#aaa; text-align:center; padding:10px 0;">暂无——很好！</p></div>
@@ -855,7 +942,7 @@
 const APP_VERSION = '1.0.0';
 // RELEASE_VERSION = 发布版本：每次发版（内容版/功能内容版/结构版）都 +1，显示在页面底部，
 // 用来确认自己装的是哪个版本。内容版不清数据，所以它和 APP_VERSION 是两条线。
-const RELEASE_VERSION = '1.6.7';
+const RELEASE_VERSION = '1.11.0';
 
 // 存档拆成两套：
 //   sp_v<版本>_*  会话进度、打卡天数、今日计数 —— 换版本自动清空
@@ -1441,6 +1528,15 @@ function init() {
     updateTypePrefsBtn();
     const cvc = document.getElementById('conjVerbCount');
     if (cvc) cvc.textContent = VERBS.length;
+    conjFilters = loadData('conjFilters', conjFilters) || conjFilters;
+    populateConjLessonFilter();
+    const filterMap = { conjSelType: 'type', conjSelTense: 'tense', conjSelPerson: 'person', conjSelLesson: 'lesson' };
+    Object.keys(filterMap).forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = conjFilters[filterMap[id]] || 'all';
+    });
+    renderConjErrorBook();
+    renderConjHeatmap();
     updateContextBar();
     document.getElementById('versionTag').textContent =
         `v${RELEASE_VERSION}` + (freshInstall ? '　·　已为新版本重置进度（记忆曲线保留）' : '');
@@ -1634,7 +1730,9 @@ function loadCurrentSentence() {
     questionAnswered = false;
     questionSolved = false;
     updateNextBtn();
+    updateTypePrefsBtn();
     updateContextBar();
+    hideDiagnosis('diagnosis');   // 新题清掉上一题的诊断卡
 
     const tier = currentSentence.tier || 1;
     const idx = (mode === MODE_PLAN) ? sessionIndex : queueIndex;
@@ -1979,11 +2077,215 @@ function checkAnswer(noSpeak) {
     finishAnswer(result, noSpeak);
 }
 
-// 四题型判分汇聚点：SRS 调度 + 计分 + 错题本 + 反馈完全一致
+// ==================== 错因诊断（红叉 → 诊断） ====================
+// 逐字符对齐（Levenshtein 回溯）：op ∈ same/sub/ins/del
+// sub=写错字母（want 是正确字母）; del=用户多写的字母; ins=用户漏写的字母
+function charDiffOps(user, correct) {
+    const u = String(user || ''), c = String(correct || '');
+    const m = u.length, n = c.length;
+    const dp = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(0));
+    for (let i = 0; i <= m; i++) dp[i][0] = i;
+    for (let j = 0; j <= n; j++) dp[0][j] = j;
+    for (let i = 1; i <= m; i++) {
+        for (let j = 1; j <= n; j++) {
+            dp[i][j] = Math.min(dp[i-1][j] + 1, dp[i][j-1] + 1, dp[i-1][j-1] + (u[i-1] === c[j-1] ? 0 : 1));
+        }
+    }
+    const ops = [];
+    let i = m, j = n;
+    while (i > 0 || j > 0) {
+        if (i > 0 && j > 0 && u[i-1] === c[j-1]) { ops.push({ op: 'same', ch: u[i-1] }); i--; j--; }
+        else if (i > 0 && j > 0 && dp[i][j] === dp[i-1][j-1] + 1) { ops.push({ op: 'sub', ch: u[i-1], want: c[j-1] }); i--; j--; }
+        else if (i > 0 && dp[i][j] === dp[i-1][j] + 1) { ops.push({ op: 'del', ch: u[i-1] }); i--; }
+        else { ops.push({ op: 'ins', ch: c[j-1] }); j--; }
+    }
+    return ops.reverse();
+}
+
+// 动词变形信息：核心动词给到人称·时态；其余动词用词典变形索引给原形
+function verbFormInfo(formNorm) {
+    const f = String(formNorm || '');
+    for (const v of VERBS) {
+        const tenses = [['present', '现在时'], ['preterite', '简单过去时'], ['subjunctive', '虚拟式']];
+        for (const [t, label] of tenses) {
+            const ps = ['yo', 'tu', 'el', 'nosotros', 'vosotros', 'ellos'];
+            for (let i = 0; i < ps.length; i++) {
+                if (normalize(v.forms[t][ps[i]]) === f) return { inf: v.inf, tense: label, person: PERSON_LABEL[ps[i]] };
+            }
+        }
+        const im = v.forms.imperativoTu;
+        if (normalize(im.tu) === f) return { inf: v.inf, tense: '命令式', person: 'tú' };
+        if (normalize(im.tuNeg.replace(/^no\s+/, '')) === f) return { inf: v.inf, tense: '否定命令式', person: 'tú' };
+    }
+    // 过去未完成时（DICT_IMPERFECT）：yo/él 共享形式时在人称上注明
+    for (const inf of Object.keys(DICT_IMP)) {
+        const forms = DICT_IMP[inf] || {};
+        for (const p of ['yo', 'tu', 'el', 'nosotros', 'vosotros', 'ellos']) {
+            if (normalize(forms[p]) === f) {
+                const shared = (p === 'yo' || p === 'el') && normalize(forms.yo) === normalize(forms.el);
+                return { inf, tense: '过去未完成时', person: PERSON_LABEL[p] + (shared ? '（同 él/ella 形式）' : '') };
+            }
+        }
+    }
+    ensureDictIndex();
+    if (dictFormIndex.has(f)) return { inf: dictFormIndex.get(f), tense: null, person: null };
+    return null;
+}
+
+// 主诊断（纯函数）：correct=正确答案, user=用户输入, isDictation=精听语境
+// 标签优先级：重音/符号 > 词序 > 变位 > 听力（仅精听）> 拼写
+function diagnoseAnswer(correct, user, isDictation) {
+    const result = judgeAnswer(correct, user);
+    const tags = [];
+    const explain = [];
+    const cNorm = normalize(correct), uNorm = normalize(user);
+    const cWords = toWordArray(correct), uWords = toWordArray(user);
+    const cNormWords = cWords.map(normalize), uNormWords = uWords.map(normalize);
+
+    if (uNorm === cNorm) {
+        // 归一化后完全一致：只是重音/标点/大小写差异（不扣分，但要提示）
+        tags.push('重音/符号');
+        const accented = cWords.filter(w => /[áéíóúüñ¿¡]/.test(w));
+        explain.push(accented.length > 0
+            ? '内容没错。注意原句里的重音/特殊符号：' + accented.join('、') + '（打不出重音不扣分，但眼睛要认识它）'
+            : '内容没错，只是标点或大小写不同。');
+        return { tags, explain, result };
+    }
+
+    const cs = [...cNormWords].sort().join(' '), us = [...uNormWords].sort().join(' ');
+    if (cs === us && cNormWords.join(' ') !== uNormWords.join(' ')) {
+        tags.push('词序');
+        explain.push('单词都对，只是顺序颠倒了。西语语序：主语 + 动词 + 宾语，形容词一般放名词后。');
+    }
+
+    // 变位：该写的词与你写的词是同一动词的不同变形（核心动词能给到人称·时态）
+    const conjPairs = [];
+    for (const mc of result.unmatchedCorrect) {
+        const info = verbFormInfo(mc.word);
+        if (!info) continue;
+        const mine = result.extraUserWords.find(u => {
+            const ui = verbFormInfo(u);
+            return ui && ui.inf === info.inf && normalize(u) !== normalize(mc.word);
+        });
+        if (mine) {
+            const mi = verbFormInfo(mine);
+            conjPairs.push({ correct: mc.word, user: mine, info, mi });
+            tags.push('变位');
+            explain.push(`${mc.word} 是 ${info.inf} 的 ${info.person}·${info.tense}；你写成了 ${mine}（${mi.person}·${mi.tense}）——同动词不同人称/时态。`);
+        } else if (result.extraUserWords.some(u => normalize(u) === normalize(info.inf))) {
+            // 用户写的是动词原形（该变位的地方没变位）
+            tags.push('变位');
+            explain.push(`${mc.word} 是 ${info.inf} 的 ${info.person}·${info.tense}，不是原形 ${info.inf}。`);
+        }
+    }
+
+    if (tags.length === 0 && isDictation && (result.unmatchedCorrect.length > 0 || result.extraUserWords.length > 0)) {
+        tags.push('听力');
+        explain.push('精听场景里这多半是听岔了：再点 🔊 播放，注意元音和词尾，别急着看原文。');
+    }
+
+    if (tags.length === 0 || result.typos.length > 0) {
+        tags.push('拼写');
+        if (result.typos.length > 0) {
+            explain.push('有词拼错了：' + result.typos.map(t => `「${t.userWord}」→「${t.word}」`).join('、') + '（下面逐字母标出来了）。');
+        } else if (result.unmatchedCorrect.length > 0) {
+            explain.push('有单词漏掉或没写出来：' + result.unmatchedCorrect.map(m => m.word).join('、') + '。');
+        }
+    }
+
+    return { tags: [...new Set(tags)], explain, result, conjPairs };
+}
+
+// 诊断卡渲染：✅ 正确句（漏词红下划线）· ✏️ 你的输入（错字母红底/多字母黄删除线/漏字母绿位）
+function buildDiagnosisCard(correct, user, diag) {
+    const cWords = toWordArray(correct);
+    const uWords = toWordArray(user);
+    const cNormSet = new Set(cWords.map(normalize));
+    const uNormSet = new Set(uWords.map(normalize));
+    // 拼错词 → 对应正确词的映射（judgeAnswer 的 typos 已配对好）
+    const typoMap = {};
+    (diag.result.typos || []).forEach(t => { typoMap[normalize(t.userWord)] = t.word; });
+    const cHtml = cWords.map(w => {
+        const missed = !uNormSet.has(normalize(w));
+        return `<span${missed ? ' class="d-miss"' : ''}>${escapeHtml(w).replace(/([áéíóúüñ¿¡])/g, '<mark>$1</mark>')}</span>`;
+    }).join(' ');
+    const uHtml = uWords.map(w => {
+        const n = normalize(w);
+        if (typoMap[n]) {
+            // 拼错词：逐字符对齐标色（错字母红底 / 多字母黄删除线 / 漏字母绿点）
+            const ops = charDiffOps(w, typoMap[n]);
+            return ops.map(o => {
+                if (o.op === 'same') return escapeHtml(o.ch);
+                if (o.op === 'sub') return `<span class="d-wrong" title="应为 ${escapeHtml(o.want)}">${escapeHtml(o.ch)}</span>`;
+                if (o.op === 'del') return `<span class="d-extra" title="多写的字母">${escapeHtml(o.ch)}</span>`;
+                return `<span class="d-gain" title="漏写的字母">·</span>`;
+            }).join('');
+        }
+        if (!cNormSet.has(n)) return `<span class="d-extra">${escapeHtml(w)}</span>`;
+        return escapeHtml(w);
+    }).join(' ');
+    const tagHtml = diag.tags.map(t => `<span class="d-tag">${escapeHtml(t)}</span>`).join('');
+    const explainHtml = diag.explain.map(e => `<div class="d-line">💡 ${escapeHtml(e)}</div>`).join('');
+    return `<div style="margin-top:2px;">
+        <div style="font-size:0.85em; color:#b7791f; margin-bottom:4px;">🔍 诊断　${tagHtml}</div>
+        <div style="line-height:2;">✅ ${cHtml}<br>✏️ ${uHtml}</div>
+        ${explainHtml}
+    </div>`;
+}
+
+// ---- 错误日志与本周 Top 3 ----
+const ERROR_TYPE_ICON = { '变位': '🔀', '拼写': '✍️', '重音/符号': '✒️', '词序': '🔃', '听力': '👂' };
+function logError(type, pair, sentence) {
+    let log = loadData('errorLog', []);
+    log.push({ date: getTodayStr(), type, pair, sentence });
+    if (log.length > 500) log = log.slice(-500);   // 上限 500 条
+    saveData('errorLog', log);
+}
+function topErrorStats(days) {
+    const log = loadData('errorLog', []);
+    const since = addDays(getTodayStr(), -((days || 7) - 1));
+    const recent = log.filter(e => e.date >= since && e.date <= getTodayStr());
+    const groups = {};
+    recent.forEach(e => {
+        const key = e.type + '|' + (e.pair || '');
+        if (!groups[key]) groups[key] = { type: e.type, pair: e.pair, count: 0 };
+        groups[key].count++;
+    });
+    return Object.values(groups).sort((a, b) => b.count - a.count).slice(0, 3);
+}
+
+// ==================== 四题型判分汇聚点：SRS 调度 + 计分 + 错题本 + 反馈完全一致 ====================
+// 取用户本次输入文本（按题型），供诊断与统计用
+function getUserAnswerText() {
+    if (!currentQuestion) return { text: '', isDictation: false };
+    const q = currentQuestion;
+    if (q.type === 'choice') return { text: q.chosen || '', isDictation: false };
+    if (q.type === 'tiles') return { text: q.tray.map(i => q.tiles[i]).join(' '), isDictation: false };
+    const el = document.getElementById('userInput');
+    return { text: el ? el.value : '', isDictation: q.type === 'dictation' };
+}
+// 错题 → 渲染诊断卡 + 记入本周错误统计
+function showDiagnosis(sentence, ans, boxId) {
+    if (!ans.text) return null;
+    const diag = diagnoseAnswer(sentence, ans.text, ans.isDictation);
+    const box = document.getElementById(boxId);
+    if (box) { box.innerHTML = buildDiagnosisCard(sentence, ans.text, diag); box.classList.remove('hidden'); }
+    const pair = (diag.conjPairs && diag.conjPairs[0])
+        ? `${diag.conjPairs[0].correct}→${diag.conjPairs[0].user}`
+        : (diag.result.typos[0] ? `${diag.result.typos[0].userWord}→${diag.result.typos[0].word}` : '');
+    logError(diag.tags[0], pair, sentence);
+    return diag;
+}
+function hideDiagnosis(boxId) {
+    const box = document.getElementById(boxId);
+    if (box) box.classList.add('hidden');
+}
+
 function finishAnswer(result, noSpeak) {
     const feedbackEl = document.getElementById('feedback');
     questionAnswered = true;      // 提交过答案（无论对错）→ 解锁「下一题」
     updateNextBtn();
+    updateTypePrefsBtn();
     // 每次作答都推进 SRS 调度：答对拉长间隔、答错打回 1 天（难题有封顶）
     scheduleCard(currentSentence, statusToQuality(result.status));
 
@@ -1999,6 +2301,7 @@ function finishAnswer(result, noSpeak) {
         saveData('score', score);
         removeWrongItem(currentSentence.spanish);
         revealAnswer(true);
+        hideDiagnosis('diagnosis');
         if (points > 0) spawnXpParticles(points);   // 答对粒子飞向底部经验条
         if (!noSpeak) speak(currentSentence.spanish);   // 答对自动朗读，眼睛耳朵一起记
         questionSolved = true;
@@ -2014,6 +2317,7 @@ function finishAnswer(result, noSpeak) {
         saveData('score', score);
         removeWrongItem(currentSentence.spanish);
         revealAnswer(true);
+        hideDiagnosis('diagnosis');
         if (points > 0) spawnXpParticles(points);
         if (!noSpeak) speak(currentSentence.spanish);
         questionSolved = true;
@@ -2022,6 +2326,7 @@ function finishAnswer(result, noSpeak) {
         const missedWords = result.unmatchedCorrect.map(m => m.word).join(', ');
         feedbackEl.textContent = `💡 已正确写出：${matchedWords || '无'}。还差：${missedWords}`;
         feedbackEl.className = 'feedback';
+        showDiagnosis(currentSentence.spanish, getUserAnswerText(), 'diagnosis');   // 错因诊断
     } else {
         const matchedWords = result.matchedCorrect.map(m => m.word).join(', ');
         if (matchedWords) {
@@ -2032,6 +2337,7 @@ function finishAnswer(result, noSpeak) {
         feedbackEl.className = 'feedback incorrect';
         addWrongItem(currentSentence);
         markCorrectOption();
+        showDiagnosis(currentSentence.spanish, getUserAnswerText(), 'diagnosis');   // 错因诊断
     }
 }
 
@@ -2076,6 +2382,7 @@ function revealAnswer(silent) {
         span.className = 'wlink';
         span.innerHTML = token.replace(/([áéíóúüñ¿¡])/g, '<mark>$1</mark>');
         const clean = token.replace(/[.,!?¿¡;:'"()]/g, '');
+        span.dataset.w = clean;   // 长按富弹窗用
         span.onclick = ev => {
             ev.stopPropagation();
             if (spanishEl.classList.contains('blurred')) return;   // 答案还藏着时，点击只是揭开
@@ -2092,6 +2399,7 @@ function revealAnswer(silent) {
     document.getElementById('feedback').className = 'feedback';
     questionAnswered = true;   // 看过答案也算完成本题，允许点「下一题」
     updateNextBtn();
+    updateTypePrefsBtn();
 }
 
 let limitAcknowledged = false;   // 今天已确认过“超额继续”，就不再反复弹窗
@@ -2163,6 +2471,62 @@ const PERSON_KEYS = ['yo', 'tu', 'el', 'nosotros', 'vosotros', 'ellos'];
 let conjQuestion = null;       // { verb, tense, person, answer }
 let conjRetry = [];            // 本轮答错的题，结束时重问
 let conjRoundCorrect = 0, conjRoundWrong = 0;
+let conjFilters = { type: 'all', tense: 'all', person: 'all', lesson: 'all' };
+let conjQuizQueue = [];        // 错题本生成的小测队列（优先于随机出题）
+
+// ---- 动词 → 首次出现的教材课号（运行时从课程内容计算，不用手工维护） ----
+let verbLessonMap = null;
+function buildVerbLessonMap() {
+    if (verbLessonMap) return;
+    verbLessonMap = {};
+    const mains = course.filter(l => l.group === 'main');
+    VERBS.forEach(v => {
+        const forms = new Set([normalize(v.inf)]);
+        ['present', 'preterite', 'subjunctive'].forEach(t => {
+            ['yo', 'tu', 'el', 'nosotros', 'vosotros', 'ellos'].forEach(p => forms.add(normalize(v.forms[t][p])));
+        });
+        const im = v.forms.imperativoTu;
+        forms.add(normalize(im.tu)); forms.add(normalize(im.tuNeg.replace(/^no\s+/, '')));
+        for (const l of mains) {
+            const hit = l.sentences.some(s => String(s.spanish).split(/\s+/).some(w => forms.has(normalize(w))));
+            if (hit) { verbLessonMap[v.inf] = l.id; break; }
+        }
+    });
+}
+function verbLessonOf(inf) {
+    buildVerbLessonMap();
+    return verbLessonMap[inf] || null;
+}
+
+// ---- 筛选 ----
+function onConjFilter(key, value) {
+    conjFilters[key] = value;
+    saveData('conjFilters', conjFilters);
+}
+function resetConjFilters() {
+    conjFilters = { type: 'all', tense: 'all', person: 'all', lesson: 'all' };
+    saveData('conjFilters', conjFilters);
+    ['conjSelType', 'conjSelTense', 'conjSelPerson', 'conjSelLesson'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = 'all';
+    });
+}
+function populateConjLessonFilter() {
+    const sel = document.getElementById('conjSelLesson');
+    if (!sel) return;
+    const mains = course.filter(l => l.group === 'main');
+    sel.innerHTML = '<option value="all">全部课号</option>' +
+        mains.map(l => `<option value="${l.id}">第${l.id - 23}课：${escapeHtml(l.title.replace('教材', ''))}</option>`).join('');
+}
+function conjPool() {
+    buildVerbLessonMap();
+    return VERBS.filter(v => {
+        if (conjFilters.type === 'reg' && !v.reg) return false;
+        if (conjFilters.type === 'irr' && v.reg) return false;
+        if (conjFilters.lesson !== 'all' && verbLessonOf(v.inf) !== Number(conjFilters.lesson)) return false;
+        return true;
+    });
+}
 
 // 轮次制：点「开始训练」清空本轮计数、进入训练区、出第一题
 function startConjRound() {
@@ -2176,33 +2540,99 @@ function startConjRound() {
     newConjQuestion();
 }
 
-function newConjQuestion() {
-    if (VERBS.length === 0) {
-        document.getElementById('conjPrompt').textContent = '变位表未加载';
-        return;
-    }
-    const verb = VERBS[Math.floor(Math.random() * VERBS.length)];
-    // 时态加权：现在时 40% / 过去时 30% / 虚拟式 15% / 命令式 15%
-    const r = Math.random();
-    let tense = r < 0.40 ? 'present' : r < 0.70 ? 'preterite' : r < 0.85 ? 'subjunctive' : 'imperativoTu';
-    let person, answer;
+function renderConjQuestion(verb, tense, person, answer, quizNote) {
     if (tense === 'imperativoTu') {
-        person = 'tu';
-        answer = Math.random() < 0.5 ? verb.forms.imperativoTu.tu : verb.forms.imperativoTu.tuNeg;
-        // 否定命令式带 no，提示里说明
         document.getElementById('conjPrompt').textContent =
-            `${verb.inf} · tú · 命令式（肯定或否定）`;
+            `${verb.inf} · tú · 命令式（肯定或否定）${quizNote ? '　🎯错题小测' : ''}`;
     } else {
-        person = PERSON_KEYS[Math.floor(Math.random() * 6)];
-        answer = verb.forms[tense][person];
         document.getElementById('conjPrompt').textContent =
-            `${verb.inf} · ${PERSON_LABEL[person]} · ${TENSE_LABEL[tense]}`;
+            `${verb.inf} · ${PERSON_LABEL[person]} · ${TENSE_LABEL[tense]}${quizNote ? '　🎯错题小测' : ''}`;
     }
     conjQuestion = { verb, tense, person, answer };
     document.getElementById('conjZh').textContent = `${verb.inf} = ${verb.zh}`;
     document.getElementById('conjInput').value = '';
     document.getElementById('conjFeedback').textContent = '';
     document.getElementById('conjFeedback').className = 'feedback';
+    hideDiagnosis('conjTableArea');
+}
+
+function newConjQuestion() {
+    if (VERBS.length === 0) {
+        document.getElementById('conjPrompt').textContent = '变位表未加载';
+        return;
+    }
+    // 错题小测队列优先
+    if (conjQuizQueue.length > 0) {
+        const item = conjQuizQueue.shift();
+        const verb = VERBS.find(v => v.inf === item.verb);
+        if (verb) {
+            renderConjQuestion(verb, item.tense, item.person, item.answer, true);
+            return;
+        }
+    }
+    const pool = conjPool();
+    if (pool.length === 0) {
+        document.getElementById('conjPrompt').textContent = '⚠️ 当前筛选下没有动词，点「🔄 重置」恢复';
+        conjQuestion = null;
+        return;
+    }
+    const verb = pool[Math.floor(Math.random() * pool.length)];
+    // 时态：筛选指定时态；否则加权（现在时 40% / 过去时 30% / 虚拟式 15% / 命令式 15%）
+    let tense;
+    if (conjFilters.tense !== 'all') tense = conjFilters.tense;
+    else {
+        const r = Math.random();
+        tense = r < 0.40 ? 'present' : r < 0.70 ? 'preterite' : r < 0.85 ? 'subjunctive' : 'imperativoTu';
+    }
+    let person, answer;
+    if (tense === 'imperativoTu') {
+        person = 'tu';
+        answer = Math.random() < 0.5 ? verb.forms.imperativoTu.tu : verb.forms.imperativoTu.tuNeg;
+    } else {
+        person = conjFilters.person !== 'all' ? conjFilters.person : PERSON_KEYS[Math.floor(Math.random() * 6)];
+        answer = verb.forms[tense][person];
+    }
+    renderConjQuestion(verb, tense, person, answer, false);
+}
+
+// 输入框快捷按钮：á é í ó ú ñ
+function insertAccent(ch) {
+    const el = document.getElementById('conjInput');
+    if (!el) return;
+    const s = (typeof el.selectionStart === 'number' && el.selectionStart != null) ? el.selectionStart : el.value.length;
+    const e = (typeof el.selectionEnd === 'number' && el.selectionEnd != null) ? el.selectionEnd : s;
+    el.value = el.value.slice(0, s) + ch + el.value.slice(e);
+    el.focus();
+    if (typeof el.setSelectionRange === 'function') {
+        try { el.setSelectionRange(s + 1, s + 1); } catch(err) {}
+    }
+}
+
+// ---- 答错：显示完整变位表并高亮错的位置 ----
+function conjTableHtml(verb, hlTense, hlPerson, userWrong) {
+    const tenses = [['present', '现在时'], ['preterite', '简单过去时'], ['subjunctive', '虚拟式']];
+    const head = `<tr><th style="padding:3px 8px;"></th>${['yo', 'tu', 'el', 'nosotros', 'vosotros', 'ellos']
+        .map(p => `<th style="padding:3px 6px; font-size:0.75em; color:#666;">${PERSON_LABEL[p].split('（')[0]}</th>`).join('')}</tr>`;
+    const rows = tenses.map(([t, label]) => {
+        const cells = ['yo', 'tu', 'el', 'nosotros', 'vosotros', 'ellos'].map(p => {
+            const form = verb.forms[t][p];
+            const isHl = hlTense === t && hlPerson === p;
+            return `<td style="padding:3px 6px; ${isHl ? 'background:#ffd6d6; border-radius:4px; font-weight:bold;' : ''}">${form}</td>`;
+        }).join('');
+        return `<tr><td style="padding:3px 8px; color:#888; white-space:nowrap;">${label}</td>${cells}</tr>`;
+    }).join('');
+    const im = verb.forms.imperativoTu;
+    const imHl = hlTense === 'imperativoTu';
+    const imRow = `<tr><td style="padding:3px 8px; color:#888; white-space:nowrap;">命令式（tú）</td>
+        <td colspan="6" style="padding:3px 6px; ${imHl ? 'background:#ffd6d6; border-radius:4px; font-weight:bold;' : ''}">${im.tu} / ${im.tuNeg}</td></tr>`;
+    const wrongHtml = userWrong
+        ? `<div style="margin-top:6px; font-size:0.85em; color:#c0392b;">你写的：<span class="d-extra">${escapeHtml(userWrong)}</span>　正确答案：<b>${escapeHtml(conjQuestion ? conjQuestion.answer : '')}</b>（表中红格）</div>`
+        : '';
+    return `<div class="card" style="border-left-color:var(--red); padding:10px 14px;">
+        <div style="font-size:0.9em; color:#c0392b; margin-bottom:6px;">📋 ${escapeHtml(verb.inf)}（${escapeHtml(verb.zh)}）完整变位表——红格是刚错的位置</div>
+        <div style="overflow-x:auto;"><table style="border-collapse:collapse;">${head}${rows}${imRow}</table></div>
+        ${wrongHtml}
+    </div>`;
 }
 
 function checkConjAnswer() {
@@ -2221,6 +2651,7 @@ function checkConjAnswer() {
         feedbackEl.textContent = '✅ 正确！' + (conjQuestion.tense === 'imperativoTu' && conjQuestion.answer.startsWith('no ')
             ? '（否定命令式要带 no）' : '');
         feedbackEl.className = 'feedback correct';
+        hideDiagnosis('conjTableArea');
         if (conjQuestion.tense === 'imperativoTu') speak(conjQuestion.answer.replace(/^no /, ''));
         else speak(conjQuestion.answer);
     } else {
@@ -2228,6 +2659,14 @@ function checkConjAnswer() {
         conjRetry.push(conjQuestion);
         feedbackEl.textContent = `❌ 不对。正确答案：${conjQuestion.verb.inf} · ${conjQuestion.tense === 'imperativoTu' ? 'tú' : conjQuestion.person} → ${conjQuestion.answer}`;
         feedbackEl.className = 'feedback incorrect';
+        // 完整变位表 + 高亮错的位置
+        const area = document.getElementById('conjTableArea');
+        if (area) {
+            area.innerHTML = conjTableHtml(conjQuestion.verb, conjQuestion.tense, conjQuestion.person, input);
+            area.classList.remove('hidden');
+        }
+        // 自动进错题本
+        logConjError(conjQuestion.verb.inf, conjQuestion.tense, conjQuestion.person, conjQuestion.answer, input);
         speak(conjQuestion.answer.replace(/^no /, ''));
     }
     updateConjStats(ok);
@@ -2257,6 +2696,7 @@ function endConjRound() {
             }
             document.getElementById('conjZh').textContent = `${conjQuestion.verb.inf} = ${conjQuestion.verb.zh}`;
             document.getElementById('conjInput').value = '';
+            hideDiagnosis('conjTableArea');
         }
     } else {
         // 本轮结束：回到开始界面，把成绩亮在那里
@@ -2266,6 +2706,7 @@ function endConjRound() {
         conjQuestion = null;
         document.getElementById('conjPlay').classList.add('hidden');
         document.getElementById('conjStart').classList.remove('hidden');
+        hideDiagnosis('conjTableArea');
     }
 }
 
@@ -2277,6 +2718,86 @@ function updateConjStats(wasCorrect) {
     if (wasCorrect) stats.correct = (stats.correct || 0) + 1;
     saveData('conjStats', stats);
     document.getElementById('conjTotal').textContent = stats.done;
+}
+
+// ---- 变位错题本 + 小测 + 热力图 ----
+function loadConjErrors() {
+    return loadData('conjErrors', []);
+}
+function logConjError(inf, tense, person, answer, user) {
+    let log = loadConjErrors();
+    log.push({ date: getTodayStr(), verb: inf, tense, person, answer, user });
+    if (log.length > 300) log = log.slice(-300);
+    saveData('conjErrors', log);
+    renderConjErrorBook();
+    renderConjHeatmap();
+}
+function clearConjErrors() {
+    saveData('conjErrors', []);
+    renderConjErrorBook();
+    renderConjHeatmap();
+}
+function renderConjErrorBook() {
+    const countEl = document.getElementById('conjErrCount');
+    const listEl = document.getElementById('conjErrList');
+    if (!listEl) return;
+    const log = loadConjErrors();
+    if (countEl) countEl.textContent = log.length;
+    if (log.length === 0) {
+        listEl.innerHTML = '还没有错题——很好！';
+        return;
+    }
+    listEl.innerHTML = log.slice(-15).reverse().map(e =>
+        `<div style="margin:3px 0;">· ${escapeHtml(e.verb)} · ${escapeHtml(e.tense === 'imperativoTu' ? '命令式' : PERSON_LABEL[e.person] + '·' + TENSE_LABEL[e.tense])}：你写 <span class="d-extra">${escapeHtml(e.user)}</span> → <b>${escapeHtml(e.answer)}</b></div>`
+    ).join('') + (log.length > 15 ? `<div style="color:#999;">（共 ${log.length} 条，显示最近 15 条）</div>` : '');
+}
+function startConjQuiz() {
+    const log = loadConjErrors();
+    if (log.length === 0) {
+        alert('错题本还是空的，先做几道题吧');
+        return;
+    }
+    // 去重（同一动词×时态×人称只取一次），最近错的优先，随机补齐 10 题
+    const seen = new Set();
+    const uniq = [];
+    [...log].reverse().forEach(e => {
+        const key = e.verb + '|' + e.tense + '|' + e.person;
+        if (!seen.has(key)) { seen.add(key); uniq.push(e); }
+    });
+    const picks = uniq.length >= 10
+        ? uniq.slice(0, 10)
+        : [...uniq, ...log.filter(e => !uniq.some(u => u === e))].slice(0, 10);
+    shuffleArray(picks);
+    conjQuizQueue = picks.map(e => ({ verb: e.verb, tense: e.tense, person: e.person, answer: e.answer }));
+    document.getElementById('conjStart').classList.add('hidden');
+    document.getElementById('conjPlay').classList.remove('hidden');
+    conjRetry = [];
+    conjRoundCorrect = 0;
+    conjRoundWrong = 0;
+    document.getElementById('conjCorrect').textContent = '0';
+    document.getElementById('conjWrong').textContent = '0';
+    newConjQuestion();
+}
+function renderConjHeatmap() {
+    const box = document.getElementById('conjHeatmap');
+    if (!box) return;
+    const log = loadConjErrors();
+    const grid = {};   // tense|person -> count
+    log.forEach(e => { const k = e.tense + '|' + e.person; grid[k] = (grid[k] || 0) + 1; });
+    const max = Math.max(1, ...Object.values(grid));
+    const tenses = [['present', '现在时'], ['preterite', '简单过去时'], ['subjunctive', '虚拟式'], ['imperativoTu', '命令式']];
+    const persons = ['yo', 'tu', 'el', 'nosotros', 'vosotros', 'ellos'];
+    const head = `<tr><th style="padding:3px 8px;"></th>${persons.map(p => `<th style="padding:3px 6px; font-size:0.75em; color:#666;">${PERSON_LABEL[p].split('（')[0]}</th>`).join('')}</tr>`;
+    const rows = tenses.map(([t, label]) => {
+        const cells = persons.map(p => {
+            const c = grid[t + '|' + p] || 0;
+            const alpha = c === 0 ? 0 : 0.15 + 0.85 * (c / max);
+            return `<td style="padding:3px 6px; text-align:center; ${c > 0 ? `background:rgba(231,76,60,${alpha.toFixed(2)}); color:${alpha > 0.55 ? '#fff' : '#333'}; border-radius:4px;` : 'color:#bbb;'}">${c || '·'}</td>`;
+        }).join('');
+        return `<tr><td style="padding:3px 8px; color:#888; white-space:nowrap;">${label}</td>${cells}</tr>`;
+    }).join('');
+    box.innerHTML = `<div style="overflow-x:auto;"><table style="border-collapse:collapse;">${head}${rows}</table></div>
+        <div style="font-size:0.75em; color:#999; margin-top:4px;">数字 = 错题本里的错误次数，越红越弱（命令式只有 tú 人称）</div>`;
 }
 
 // ==================== 教材主线模式 ====================
@@ -2323,7 +2844,7 @@ function showTextbookLesson(id) {
             <details class="tb-point">
                 <summary>💡 ${p.title}</summary>
                 <p class="tb-explain">${p.explain}</p>
-                ${(p.examples || []).map(e => `<div class="ex-row"><span class="ex-es">${e.es} <button class="speak-btn" onclick="speak('${e.es.replace(/'/g, "\\'")}')">🔊</button></span><span class="ex-zh">${e.zh}</span></div>`).join('')}
+                ${(p.examples || []).map(e => `<div class="ex-row"><span class="ex-es">${wrapWords(e.es)} <button class="speak-btn" onclick="speak('${e.es.replace(/'/g, "\\'")}')">🔊</button></span><span class="ex-zh">${e.zh}</span></div>`).join('')}
             </details>
         `).join('');
     }
@@ -2331,7 +2852,7 @@ function showTextbookLesson(id) {
     if (t && t.vocab && t.vocab.length) {
         vocabHtml = `<h3 style="margin:15px 0 8px; font-size:1em;">📕 本课词汇</h3>
         <table><tr><th>西语</th><th>词性</th><th>中文</th></tr>
-        ${t.vocab.map(v => `<tr><td>${v.es} <button class="speak-btn" onclick="speak('${v.es.replace(/'/g, "\\'")}')">🔊</button></td><td>${v.pos}</td><td>${v.zh}</td></tr>`).join('')}
+        ${t.vocab.map(v => `<tr><td>${wrapWords(v.es)} <button class="speak-btn" onclick="speak('${v.es.replace(/'/g, "\\'")}')">🔊</button></td><td>${v.pos}</td><td>${v.zh}</td></tr>`).join('')}
         </table>`;
     }
     let dialogueHtml = '';
@@ -2344,7 +2865,7 @@ function showTextbookLesson(id) {
             ${t.dialogue.map(d => `
             <div class="dlg-row">
                 <span class="dlg-speaker">${d.speaker}</span>
-                <span class="dlg-es">${d.es} <button class="speak-btn" onclick="speakDlgLine('${d.es.replace(/'/g, "\\'")}', '${d.speaker.replace(/'/g, "\\'")}')">🔊</button></span>
+                <span class="dlg-es">${wrapWords(d.es)} <button class="speak-btn" onclick="speakDlgLine('${d.es.replace(/'/g, "\\'")}', '${d.speaker.replace(/'/g, "\\'")}')">🔊</button></span>
                 <span class="dlg-zh">${d.zh}</span>
             </div>`).join('')}
         </div>`;
@@ -2450,7 +2971,8 @@ function switchTab(tab) {
     const idx = ['textbook','dict','learn','conj','review','dictation','stats'].indexOf(tab);
     if (idx >= 0 && btns[idx]) btns[idx].classList.add('active');
     if (tab === 'textbook') renderTextbook();
-    if (tab === 'dict') renderDictHistory();
+    if (tab === 'dict') { renderDictHistory(); renderWordbook(); }
+    if (tab === 'conj') { renderConjErrorBook(); renderConjHeatmap(); }
     if (tab === 'review') renderReview();
     if (tab === 'stats') renderStats();
     currentTab = tab;
@@ -2500,11 +3022,15 @@ function checkReviewAnswer(idx) {
     } else if (result.status === 'partial') {
         const matchedWords = result.matchedCorrect.map(m => m.word).join(', ');
         const missedWords = result.unmatchedCorrect.map(m => m.word).join(', ');
-        feedbackEl.textContent = `💡 已对：${matchedWords || '无'}。还差：${missedWords}`;
+        const diag = diagnoseAnswer(item.spanish, input, false);
+        feedbackEl.innerHTML = `<span>💡 已对：${matchedWords || '无'}。还差：${missedWords}</span>${buildDiagnosisCard(item.spanish, input, diag)}`;
         feedbackEl.className = 'review-feedback';
+        logError(diag.tags[0], diag.result.typos[0] ? `${diag.result.typos[0].userWord}→${diag.result.typos[0].word}` : '', item.spanish);
     } else {
-        feedbackEl.textContent = '❌ 再试试';
+        const diag = diagnoseAnswer(item.spanish, input, false);
+        feedbackEl.innerHTML = `<span>❌ 再试试</span>${buildDiagnosisCard(item.spanish, input, diag)}`;
         feedbackEl.className = 'review-feedback incorrect';
+        logError(diag.tags[0], diag.result.typos[0] ? `${diag.result.typos[0].userWord}→${diag.result.typos[0].word}` : '', item.spanish);
     }
 }
 
@@ -2733,11 +3259,15 @@ function toggleTypePrefs() {
     const prefs = loadData('typePrefs', 'all');
     saveData('typePrefs', prefs === 'all' ? 'nokb' : 'all');
     updateTypePrefsBtn();
-    if (currentSentence) loadCurrentSentence();   // 重新渲染当前题
+    // 注意：绝不重渲染当前题——题型是按偏好+题号即时算的，中途重渲染会换题型，
+    // 听写题会变拼词题把答案词块露出来，等于作弊入口。新偏好下一题自然生效。
 }
 function updateTypePrefsBtn() {
     const btn = document.getElementById('typePrefsBtn');
-    if (btn) btn.textContent = loadData('typePrefs', 'all') === 'all' ? '🔀 题型：全部' : '🔀 题型：选择+拼词';
+    if (!btn) return;
+    const prefs = loadData('typePrefs', 'all');
+    const pending = currentSentence && !questionAnswered ? '（下一题生效）' : '';
+    btn.textContent = (prefs === 'all' ? '🔀 题型：全部' : '🔀 题型：选择+拼词') + pending;
 }
 
 function toggleTtsRate() {
@@ -2785,6 +3315,7 @@ function updateTtsVoiceLabel() {
 // VERBS_DATA 运行时生成，与词库零重复、永不失同步。索引懒加载，不阻塞进站。
 const DICT = (typeof DICT_DATA !== 'undefined' && Array.isArray(DICT_DATA)) ? DICT_DATA : [];
 const DICT_FORMS = (typeof DICT_FORMS_DATA !== 'undefined' && DICT_FORMS_DATA) ? DICT_FORMS_DATA : {};
+const DICT_IMP = (typeof DICT_IMPERFECT !== 'undefined' && DICT_IMPERFECT) ? DICT_IMPERFECT : {};
 
 let dictIndex = null;      // Map(normalize -> entry)，w 里逗号拆分的每个部分都建索引
 let dictFormIndex = null;  // Map(normalize -> 原形)
@@ -2815,6 +3346,14 @@ function ensureDictIndex() {
     Object.keys(DICT_FORMS).forEach(k => {
         const n = normalize(k);
         if (n && !dictFormIndex.has(n)) dictFormIndex.set(n, DICT_FORMS[k]);
+    });
+    // 过去未完成时（DICT_IMPERFECT）：变形 → 原形，同样进索引
+    Object.keys(DICT_IMP).forEach(inf => {
+        const forms = DICT_IMP[inf] || {};
+        Object.keys(forms).forEach(p => {
+            const f = forms[p];
+            if (f && !dictFormIndex.has(normalize(f))) dictFormIndex.set(normalize(f), inf);
+        });
     });
 }
 
@@ -2870,19 +3409,112 @@ function escapeHtml(s) {
     return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
+// 把一段西语按词包成可点词 span（点=快速查词，长按=富弹窗含变位解析）
+function wrapWords(es) {
+    return String(es || '').split(/\s+/).map(w => {
+        const clean = w.replace(/[.,!?¿¡;:'"()]/g, '');
+        return clean ? `<span class="wlink" data-w="${escapeHtml(clean)}">${escapeHtml(w)}</span>` : escapeHtml(w);
+    }).join(' ');
+}
+
+// ---- 例句回链：词典里的例句跳回题库对应卡片 ----
+let sentenceWordIndex = null;
+function buildSentenceWordIndex() {
+    if (sentenceWordIndex) return;
+    sentenceWordIndex = new Map();
+    allSentences().forEach(s => {
+        String(s.spanish).split(/\s+/).forEach(w => {
+            const n = normalize(w);
+            if (!n || n.length < 3) return;
+            const arr = sentenceWordIndex.get(n) || [];
+            if (!arr.some(x => x.spanish === s.spanish)) arr.push({ spanish: s.spanish, chinese: s.chinese, lessonId: s.lessonId });
+            sentenceWordIndex.set(n, arr);
+        });
+    });
+}
+function sentenceExamplesFor(word) {
+    buildSentenceWordIndex();
+    return sentenceWordIndex.get(normalize(word)) || [];
+}
+function jumpToSentence(lessonId, spanish) {
+    try {
+        loadLesson(lessonId);
+        const idx = sentenceQueue.findIndex(s => s.spanish === spanish);
+        if (idx !== -1) { queueIndex = idx; loadCurrentSentence(); updateProgress(); }
+        switchTab('learn');
+    } catch(e) {
+        alert('跳转失败：' + (e && e.message ? e.message : e));
+    }
+}
+
+// ---- 生词本 ----
+function loadWordbook() { return loadData('wordbook', []); }
+function isInWordbook(w) { return loadWordbook().some(x => normalize(x.w) === normalize(w)); }
+function toggleWordbook(w) {
+    if (!w) return;
+    let wb = loadWordbook();
+    if (isInWordbook(w)) {
+        wb = wb.filter(x => normalize(x.w) !== normalize(w));
+    } else {
+        const r = resolveWord(w);
+        wb.unshift({ w, zh: (r && r.entry && r.entry.zh) ? r.entry.zh[0] : '', date: getTodayStr() });
+    }
+    saveData('wordbook', wb);
+    renderWordbook();
+    const input = document.getElementById('dictInput');
+    if (input && input.value) renderDictSearch(input.value);
+}
+function renderWordbook() {
+    const box = document.getElementById('wordbookList');
+    const countEl = document.getElementById('wordbookCount');
+    if (!box) return;
+    const wb = loadWordbook();
+    if (countEl) countEl.textContent = wb.length;
+    if (wb.length === 0) {
+        box.innerHTML = '还没有收藏的词——查词时点「⭐ 加入生词本」。';
+        return;
+    }
+    box.innerHTML = wb.map(x =>
+        `<div style="display:flex; align-items:center; gap:6px; margin:3px 0; flex-wrap:wrap;">
+            <span class="wlink" data-w="${escapeHtml(x.w)}" onclick="openDictLookup(this.dataset.w)">${escapeHtml(x.w)}</span>
+            <span style="color:#888; font-size:0.8em;">${escapeHtml(x.zh || '')}</span>
+            <button class="speak-btn" onclick="speak('${x.w.replace(/'/g, "\\'")}')">🔊</button>
+            <button class="btn-secondary" style="font-size:0.75em; padding:2px 8px;" onclick="toggleWordbook('${x.w.replace(/'/g, "\\'")}')">✕</button>
+        </div>`
+    ).join('');
+}
+
 // 词条卡（词典页与点词浮层共用）：词 + 词性 + 释义 + 点读 + 变位表
-function dictEntryHtml(r) {
+// showExamples=true 时附加「例句回链」（跳回题库对应卡片）
+function dictEntryHtml(r, showExamples) {
     const e = r.entry;
     const head = e ? String(e.w).split(',')[0] : '—';
-    let html = `<div class="lang-label" style="color:var(--primary);">${escapeHtml(e.w)} <button class="speak-btn" onclick="speak('${head.replace(/'/g, "\\'")}')">🔊</button> <span style="font-size:0.75em; color:#999; font-weight:normal;">${escapeHtml(e.pos)}</span></div>`;
+    let html = `<div class="lang-label" style="color:var(--primary);">${e.emoji ? escapeHtml(e.emoji) + ' ' : ''}${escapeHtml(e.w)} <button class="speak-btn" onclick="speak('${head.replace(/'/g, "\\'")}')">🔊</button> <span style="font-size:0.75em; color:#999; font-weight:normal;">${escapeHtml(e.pos)}</span></div>`;
     if (r.formOf && e && normalize(head) !== normalize(r.formOf)) {
         html += `<div style="font-size:0.8em; color:var(--accent); margin:2px 0;">→ ${escapeHtml(r.formOf)} 的变形</div>`;
     }
     if (r.plural) {
         html += `<div style="font-size:0.8em; color:#888; margin:2px 0;">（可能是复数形式）</div>`;
     }
-    if (e && e.zh && e.zh.length) {
-        html += e.zh.map(z => `<div>· ${escapeHtml(z)}</div>`).join('');
+    // 富词条（有 senses 即走新路径）：编号义项 + 义项例句 + 折叠搭配 + 用法提示
+    const rich = e && Array.isArray(e.senses) && e.senses.length > 0;
+    if (rich) {
+        html += e.senses.map((s, i) => {
+            const scope = (s.w && normalize(s.w) !== normalize(head)) ? `<span class="sense-w">（${escapeHtml(s.w)}）</span>` : '';
+            let h = `<div class="sense-zh"><span class="sense-num">${i + 1}.</span>${escapeHtml(s.zh)}${scope}</div>`;
+            (s.ex || []).forEach(x => {
+                h += `<div class="ex-row"><span class="ex-es">${escapeHtml(x.es)} <button class="speak-btn" onclick="speak('${x.es.replace(/'/g, "\\'")}')">🔊</button></span><span class="ex-zh">${escapeHtml(x.zh)}</span></div>`;
+            });
+            return h;
+        }).join('');
+        if (e.phrases && e.phrases.length) {
+            html += `<details style="margin-top:6px;"><summary style="cursor:pointer; color:#2c5282; font-size:0.85em;">📎 常用搭配（${e.phrases.length}）</summary>`
+                  + e.phrases.map(p => `<div class="ex-row"><span class="ex-es">${escapeHtml(p.es)} <button class="speak-btn" onclick="speak('${p.es.replace(/'/g, "\\'")}')">🔊</button></span><span class="ex-zh">${escapeHtml(p.zh)}</span></div>`).join('')
+                  + '</details>';
+        }
+        if (e.note) html += `<div class="note">💡 ${escapeHtml(e.note)}</div>`;
+    } else if (e && e.zh && e.zh.length) {
+        html += e.zh.map(z => `<div>· ${escapeHtml(z)}</div>`).join('');   // 旧路径原样保留
     }
     // 变位表：e.conj 指向 VERBS_DATA，或词头本身就是 20 个动词之一
     let inf = e && e.conj;
@@ -2902,6 +3534,14 @@ function dictEntryHtml(r) {
         }).join('');
         html += `<details style="margin-top:8px;"><summary style="cursor:pointer; color:var(--accent); font-size:0.9em;">📋 变位表（${escapeHtml(verb.inf)}）</summary><table style="margin-top:6px;">${rows}</table></details>`;
     }
+    // 例句回链：词典里的例句跳回题库对应卡片
+    if (showExamples) {
+        sentenceExamplesFor(head).slice(0, 2).forEach(s => {
+            html += `<div style="font-size:0.85em; color:#666; margin-top:4px;">📖 ${escapeHtml(s.spanish)}　<button class="btn-secondary" style="font-size:0.75em; padding:2px 8px;" onclick="jumpToSentence(${s.lessonId}, '${s.spanish.replace(/'/g, "\\'")}')">↩ 去练习</button></div>`;
+        });
+    }
+    // 生词本开关
+    html += `<div style="margin-top:6px;"><button class="btn-secondary" style="font-size:0.8em; padding:3px 10px;" onclick="toggleWordbook('${head.replace(/'/g, "\\'")}')">${isInWordbook(head) ? '⭐ 已在生词本（点移除）' : '⭐ 加入生词本'}</button></div>`;
     return `<div class="card" style="border-left-color:var(--blue); margin-bottom:10px; padding:12px 16px;">${html}</div>`;
 }
 
@@ -2914,7 +3554,7 @@ function renderDictSearch(query) {
         box.innerHTML = `<div class="card" style="padding:20px; text-align:center; color:#888;">😕 词典里还没有「${escapeHtml(q)}」。试试原形，或换个写法（不用打重音符号）。</div>`;
         return;
     }
-    box.innerHTML = results.map(r => dictEntryHtml(r)).join('');
+    box.innerHTML = results.map(r => dictEntryHtml(r, true)).join('');
 }
 
 // ---- 查词历史 ----
@@ -2941,7 +3581,8 @@ function dictSearchFromHistory(w) {
 }
 
 // ---- 学习中点词浮层 ----
-function openDictLookup(word) {
+// rich=true（长按）：附带「变位解析」——原形 + 当前形式的人称·时态
+function openDictLookup(word, rich) {
     const overlay = document.getElementById('dictOverlay');
     const box = document.getElementById('dictOverlayCard');
     if (!overlay || !box) return;
@@ -2950,13 +3591,89 @@ function openDictLookup(word) {
     if (!r || !r.entry) {
         box.innerHTML = `<div class="lang-label" style="color:var(--primary);">${escapeHtml(String(word))}</div><div style="color:#888; margin:8px 0;">😕 词典里还没有这个词</div><div class="buttons"><button class="btn-secondary" onclick="closeDictLookup()">关闭</button></div>`;
     } else {
-        box.innerHTML = dictEntryHtml(r) + `<div class="buttons"><button class="btn-secondary" onclick="closeDictLookup()">关闭</button></div>`;
+        let html = dictEntryHtml(r, false);
+        if (rich) {
+            const fi = verbFormInfo(word);
+            if (fi && fi.person) {
+                html += `<div class="d-line">🔍 变位解析：${escapeHtml(word)} → 原形 <b>${escapeHtml(fi.inf)}</b>（${escapeHtml(fi.person)}·${escapeHtml(fi.tense)}）</div>`;
+            }
+        }
+        box.innerHTML = html + `<div class="buttons"><button class="btn-secondary" onclick="closeDictLookup()">关闭</button></div>`;
     }
     overlay.classList.remove('hidden');
 }
 function closeDictLookup() {
     const overlay = document.getElementById('dictOverlay');
     if (overlay) overlay.classList.add('hidden');
+}
+
+// ---- 长按任意可点词 → 富弹窗（原形/释义/变位解析） ----
+let longPressTimer = null;
+function cancelLongPress() {
+    if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
+}
+function startLongPress(e) {
+    const t = e.target;
+    const el = t && t.closest ? t.closest('.wlink') : null;
+    const word = el && el.dataset ? el.dataset.w : null;
+    if (!word) return;
+    cancelLongPress();
+    longPressTimer = setTimeout(() => {
+        longPressTimer = null;
+        openDictLookup(word, true);
+        if (e.cancelable) { try { e.preventDefault(); } catch(err) {} }
+    }, 500);
+}
+if (typeof document !== 'undefined' && document.addEventListener) {
+    document.addEventListener('touchstart', startLongPress, { passive: true });
+    document.addEventListener('touchend', cancelLongPress);
+    document.addEventListener('touchmove', cancelLongPress);
+    document.addEventListener('mousedown', startLongPress);
+    document.addEventListener('mouseup', cancelLongPress);
+    document.addEventListener('mouseleave', cancelLongPress);
+}
+
+// ==================== 界面体验：禁缩放 + 键盘不顶界面 ====================
+// 1) 禁用页面缩放：手机双指/双击（viewport 声明 + touch-action + gesture 三保险），
+//    电脑 Ctrl/Cmd+滚轮（触控板双指缩放）和 Ctrl/Cmd + +/- 快捷键。
+if (typeof document !== 'undefined' && document.addEventListener) {
+    // 旧版 iOS Safari 无视 viewport 的 user-scalable，gesture 事件兜底；Mac 触控板双指缩放同样拦截
+    document.addEventListener('gesturestart', function (e) { e.preventDefault(); });
+    document.addEventListener('wheel', function (e) {
+        if (e.ctrlKey || e.metaKey) e.preventDefault();   // 触控板双指缩放 = Ctrl+滚轮
+    }, { passive: false });
+    document.addEventListener('keydown', function (e) {
+        if ((e.ctrlKey || e.metaKey) && ['+', '-', '=', '0'].indexOf(e.key) >= 0) e.preventDefault();
+    });
+}
+
+// 2) 手机输入时键盘不把界面顶上去：iOS 键盘是覆盖式的，但 Safari 会自动滚动页面
+//    「照顾」输入框——这里把页面滚回原处，让键盘只盖住下方、题目区纹丝不动；
+//    只有输入框真的会被键盘盖住时，才滚最小距离让它露出来。
+if (isMobileUA() && typeof document !== 'undefined' && document.addEventListener && window.visualViewport) {
+    let kbScrollY = null, kbTimer = null;
+    document.addEventListener('focusin', function (e) {
+        if (e.target && e.target.matches && e.target.matches('input, textarea')) kbScrollY = window.scrollY;
+    });
+    document.addEventListener('focusout', function () { kbScrollY = null; });
+    window.visualViewport.addEventListener('resize', function () {
+        if (kbScrollY === null) return;
+        clearTimeout(kbTimer);
+        kbTimer = setTimeout(function () {
+            const el = document.activeElement;
+            if (!el || !el.matches || !el.matches('input, textarea')) return;
+            const vv = window.visualViewport;
+            const visBottom = vv.offsetTop + vv.height;
+            const rect = el.getBoundingClientRect();
+            if (rect.bottom <= visBottom - 8) {
+                // 输入框完全在键盘上方 → 滚回原处，界面不动
+                if (Math.abs(window.scrollY - kbScrollY) > 2) window.scrollTo(0, kbScrollY);
+            } else if (rect.bottom > visBottom) {
+                // 输入框会被盖住 → 只滚到刚好露出来 + 一点呼吸空间
+                window.scrollTo(0, kbScrollY + (rect.bottom - visBottom) + 16);
+            }
+        }, 120);
+    });
 }
 
 // ==================== 精听模式（TTS 驱动） ====================
@@ -3028,6 +3745,7 @@ function checkDictation() {
         feedbackEl.className = 'feedback correct';
         markDictation();
         document.getElementById('dictationText').classList.remove('blurred');
+        hideDiagnosis('dictDiagnosis');
     } else if (result.status === 'good') {
         const extraMsg = result.extraUserWords.length > 0
             ? `（多写了：${result.extraUserWords.join(', ')}）`
@@ -3035,14 +3753,17 @@ function checkDictation() {
         feedbackEl.textContent = `⚠️ 基本正确 ${extraMsg}`;
         feedbackEl.className = 'feedback correct';
         markDictation();
+        hideDiagnosis('dictDiagnosis');
     } else if (result.status === 'partial') {
         const matchedWords = result.matchedCorrect.map(m => m.word).join(', ');
         const missedWords = result.unmatchedCorrect.map(m => m.word).join(', ');
         feedbackEl.textContent = `💡 已听出：${matchedWords || '无'}。还差：${missedWords}`;
         feedbackEl.className = 'feedback';
+        showDiagnosis(dictSentence.spanish, { text: user, isDictation: true }, 'dictDiagnosis');   // 错因诊断（听力语境）
     } else {
         feedbackEl.textContent = '❌ 听写不完整，再听一遍或对照原文';
         feedbackEl.className = 'feedback incorrect';
+        showDiagnosis(dictSentence.spanish, { text: user, isDictation: true }, 'dictDiagnosis');   // 错因诊断（听力语境）
     }
 }
 
@@ -3193,6 +3914,22 @@ function renderStats() {
         </tr>`;
     }
     table.innerHTML = html;
+    renderErrorTop();
+}
+
+// 本周错误 Top 3：按 类型+配对 聚合近 7 天错误日志
+function renderErrorTop() {
+    const box = document.getElementById('errorTopBody');
+    if (!box) return;
+    const top = topErrorStats(7);
+    if (top.length === 0) {
+        box.innerHTML = '— 这周还没有错误记录，继续保持 —';
+        return;
+    }
+    const medals = ['🥇', '🥈', '🥉'];
+    box.innerHTML = top.map((g, i) =>
+        `<div style="margin:4px 0;">${medals[i]} ${ERROR_TYPE_ICON[g.type] || '❌'} <b>${escapeHtml(g.type)}</b>${g.pair ? '：' + escapeHtml(g.pair) : ''}　× ${g.count} 次</div>`
+    ).join('');
 }
 
 function copyLeeches() {
